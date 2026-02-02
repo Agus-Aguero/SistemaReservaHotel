@@ -1,0 +1,31 @@
+@model SistemaReserva.Models.Habitacion
+
+@{
+    ViewData["Title"] = "Eliminar Habitación";
+}
+
+<h3 class="text-danger">¿Estás seguro de que deseas eliminar esta habitación?</h3>
+
+<div>
+    <h4>Habitación @Model.Numero</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-3">Número de Puerta</dt>
+        <dd class="col-sm-9">@Html.DisplayFor(model => model.Numero)</dd>
+
+        <dt class="col-sm-3">Categoría</dt>
+        <dd class="col-sm-9">@(Model.Tipo?.Nombre ?? "Sin asignar")</dd>
+
+        <dt class="col-sm-3">Precio por Noche</dt>
+        <dd class="col-sm-9">@(Model.Tipo?.PrecioBase.ToString("C2") ?? "$0.00")</dd>
+        
+        <dt class="col-sm-3">Descripción Camas</dt>
+        <dd class="col-sm-9">@(Model.Tipo?.DescripcionCamas ?? "-")</dd>
+    </dl>
+
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="IdHabitacion" />
+        <input type="submit" value="Confirmar Eliminación" class="btn btn-danger" /> |
+        <a asp-action="Index" class="btn btn-secondary">Cancelar y Volver</a>
+    </form>
+</div>

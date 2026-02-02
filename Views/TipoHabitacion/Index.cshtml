@@ -1,0 +1,45 @@
+@model IEnumerable<SistemaReserva.Models.TipoHabitacion>
+
+@{
+    ViewData["Title"] = "Tipos de Habitación";
+}
+
+<div class="d-flex justify-content-between align-items-center">
+    <h1>Configuración de Tipos de Habitación</h1>
+    <a asp-action="Create" class="btn btn-success">Crear Nuevo Tipo</a>
+</div>
+
+<hr />
+
+<table class="table table-striped table-hover mt-3">
+    <thead class="table-dark">
+        <tr>
+            <th>@Html.DisplayNameFor(model => model.Nombre)</th>
+            <th>@Html.DisplayNameFor(model => model.Capacidad) (Pers.)</th>
+            <th>@Html.DisplayNameFor(model => model.DescripcionCamas)</th>
+            <th>@Html.DisplayNameFor(model => model.PrecioBase)</th>
+            <th class="text-center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td><strong>@item.Nombre</strong></td>
+                <td>@item.Capacidad</td>
+                <td>@item.DescripcionCamas</td>
+                <td>@item.PrecioBase.ToString("C2")</td> <td class="text-center">
+                    <a asp-action="Edit" asp-route-id="@item.IdTipoHabitacion" class="btn btn-warning btn-sm">Editar</a>
+                    <a asp-action="Delete" asp-route-id="@item.IdTipoHabitacion" class="btn btn-danger btn-sm">Eliminar</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        Aún no hay tipos de habitación cargados. ¡Crea el primero para empezar!
+    </div>
+}

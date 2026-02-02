@@ -1,0 +1,47 @@
+@model SistemaReserva.Models.TipoHabitacion
+
+@{
+    ViewData["Title"] = "Editar Tipo de Habitación";
+}
+
+<h1>Editar Tipo</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            
+            <input type="hidden" asp-for="IdTipoHabitacion" />
+
+            <div class="form-group mb-3">
+                <label asp-for="Nombre" class="control-label"></label>
+                <input asp-for="Nombre" class="form-control" />
+                <span asp-validation-for="Nombre" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Capacidad" class="control-label"></label>
+                <input asp-for="Capacidad" class="form-control" type="number" />
+                <span asp-validation-for="Capacidad" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="DescripcionCamas" class="control-label"></label>
+                <input asp-for="DescripcionCamas" class="form-control" />
+                <span asp-validation-for="DescripcionCamas" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="PrecioBase" class="control-label"></label>
+                <input asp-for="PrecioBase" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="PrecioBase" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Guardar Cambios" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

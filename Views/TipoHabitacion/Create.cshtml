@@ -1,0 +1,24 @@
+@model SistemaReserva.Models.TipoHabitacion
+
+<h4>Nuevo Tipo de Habitación</h4>
+<hr />
+<form asp-action="Create">
+    <div class="form-group">
+        <label asp-for="Nombre"></label>
+        <input asp-for="Nombre" class="form-control" placeholder="Ej: Suite Matrimonial" />
+    </div>
+    <div class="form-group">
+        <label asp-for="Capacidad"></label>
+        <input asp-for="Capacidad" type="number" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="DescripcionCamas"></label>
+        <input asp-for="DescripcionCamas" class="form-control" placeholder="Ej: 1 Cama King Size" />
+    </div>
+    <div class="form-group">
+        <label asp-for="PrecioBase"></label>
+        <input asp-for="PrecioBase" class="form-control" type="number" step="0.01" />
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar Tipo</button>
+    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+</form>

@@ -1,0 +1,41 @@
+######   Crear un proyecto MVC
+Nos paramos en la carpeta que realizaremos le proyecto y ejecutamos
+
+ dotnet new mvc
+
+
+######## Prepara la migracion
+ dotnet ef migrations add NombreMigracion
+
+
+#########  Ejecuta la migracion a la DB
+ dotnet ef database update
+
+
+
+ ######### Para ejectuar la aplicacion
+ dotnet run
+
+ o tambien
+
+dotnet watch run
+
+
+###### Para agregar herramientas al codigo
+ctrl + shift + P
+
+
+########   Agregar entityframework al proyecto
+ctrl + shift + P
+Nuguet pack manager
+entityframework
+8.0.11
+
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version 8.0.11
+dotnet add package Microsoft.EntityFrameworkCore.Tools --version 8.0.11
+
+
+______________________________________________________________________________
+
+Usuario de prueba:
+admin@hotel.com / admin123

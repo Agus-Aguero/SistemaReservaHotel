@@ -1,0 +1,26 @@
+@model List<string>
+
+@{
+    ViewData["Title"] = "Árbol de Permisos";
+}
+
+<div class="container mt-4">
+    <h2>Estructura de Permisos del Usuario</h2>
+    <hr />
+    
+    <div class="card shadow">
+        <div class="card-body bg-dark text-white shadow">
+            <h5 class="card-title mb-4">Jerarquía (Patrón Composite)</h5>
+            <pre style="font-size: 1.2rem; line-height: 1.5;">
+@foreach (var linea in Model)
+{
+@linea
+}
+            </pre>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Volver</a>
+    </div>
+</div>

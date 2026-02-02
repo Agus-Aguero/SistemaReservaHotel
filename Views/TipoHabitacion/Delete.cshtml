@@ -1,0 +1,33 @@
+@model SistemaReserva.Models.TipoHabitacion
+
+@{
+    ViewData["Title"] = "Eliminar Tipo de Habitación";
+}
+
+<h2 class="text-danger">¿Estás seguro de que deseas eliminar este tipo de habitación?</h2>
+<div class="alert alert-warning">
+    <strong>Atención:</strong> Si eliminas este tipo, asegúrate de que no haya habitaciones físicas asociadas a él.
+</div>
+
+<div>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-3">Nombre</dt>
+        <dd class="col-sm-9">@Model.Nombre</dd>
+
+        <dt class="col-sm-3">Capacidad</dt>
+        <dd class="col-sm-9">@Model.Capacidad personas</dd>
+
+        <dt class="col-sm-3">Camas</dt>
+        <dd class="col-sm-9">@Model.DescripcionCamas</dd>
+
+        <dt class="col-sm-3">Precio Base</dt>
+        <dd class="col-sm-9">@Model.PrecioBase.ToString("C2")</dd>
+    </dl>
+
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="IdTipoHabitacion" />
+        <input type="submit" value="Confirmar Eliminación" class="btn btn-danger" /> |
+        <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>

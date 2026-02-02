@@ -1,0 +1,51 @@
+@model SistemaReserva.Models.Reserva
+
+@{
+    ViewData["Title"] = "Nueva Reserva";
+}
+
+<h2>Nueva Reserva</h2>
+<p class="text-muted">El huésped selecciona el tipo de habitación. El número se asignará al momento del ingreso.</p>
+
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+            <div class="form-group mb-3">
+                <label class="control-label">Seleccionar Huésped:</label>
+                <select asp-for="IdPersona" class="form-control" asp-items="ViewBag.IdPersona">
+                    <option value="">-- Seleccione el Huésped --</option>
+                </select>
+                <span asp-validation-for="IdPersona" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="control-label">Categoría de Habitación:</label>
+                <select asp-for="IdTipoHabitacion" class="form-control" asp-items="ViewBag.IdTipoHabitacion">
+                    <option value="">-- Seleccione Tipo (Suite, Doble, etc.) --</option>
+                </select>
+                <span asp-validation-for="IdTipoHabitacion" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="control-label">Fecha de Entrada:</label>
+                <input asp-for="FechaInicio" type="date" class="form-control" />
+                <span asp-validation-for="FechaInicio" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="control-label">Fecha de Salida:</label>
+                <input asp-for="FechaFin" type="date" class="form-control" />
+                <span asp-validation-for="FechaFin" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-success">Confirmar Reserva</button>
+                <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+            </div>
+        </form>
+    </div>
+</div>

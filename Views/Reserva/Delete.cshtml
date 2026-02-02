@@ -1,0 +1,39 @@
+@model SistemaReserva.Models.Reserva
+
+@{
+    ViewData["Title"] = "Cancelar Reserva";
+}
+
+<h2 class="text-danger">Cancelar Reserva</h2>
+<p class="lead">¿Estás seguro de que deseas cancelar la siguiente reserva?</p>
+
+<div class="card border-danger mb-4 shadow-sm">
+    <div class="card-header bg-danger text-white">
+        Detalles de la Reserva #@Model.IdReserva
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-4">Huésped</dt>
+            <dd class="col-sm-8">@Model.Huesped?.Apellido, @Model.Huesped?.Nombre</dd>
+
+            <dt class="col-sm-4">Categoría</dt>
+            <dd class="col-sm-8">@Model.TipoHabitacion?.Nombre</dd>
+
+            <dt class="col-sm-4">Habitación Asignada</dt>
+            <dd class="col-sm-8">
+                @(Model.IdHabitacion.HasValue ? Model.Habitacion?.Numero : "Ninguna")
+            </dd>
+
+            <dt class="col-sm-4">Estadía</dt>
+            <dd class="col-sm-8">
+                @Model.FechaInicio.ToShortDateString() al @Model.FechaFin.ToShortDateString()
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<form asp-action="Delete">
+    <input type="hidden" asp-for="IdReserva" />
+    <button type="submit" class="btn btn-danger btn-lg">Confirmar Cancelación</button>
+    <a asp-action="Index" class="btn btn-secondary btn-lg">Regresar</a>
+</form>

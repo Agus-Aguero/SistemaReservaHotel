@@ -1,0 +1,171 @@
+@using SistemaReserva.Patters
+@model IEnumerable<SistemaReserva.Models.Reserva>
+
+@{
+    ViewData["Title"] = "Listado de Reservas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Gestión de Reservas</h1>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nueva Reserva
+    </a>
+</div>
+
+<hr />
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info shadow-sm">
+        <h4 class="alert-heading">¡No hay reservas!</h4>
+        <p>Todavía no se ha registrado ninguna reserva en el sistema. Haz clic en el botón azul para empezar.</p>
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover mt-3 shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Huésped</th>
+                <th>Categoría</th>
+                <th>Habitación</th>
+                <th>Estado</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Total</th>
+                <th>Noches</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <div class="mb-3">
+                <span>Ver precios en: </span>
+                <a asp-action="Index" asp-route-moneda="ARS" class="btn btn-sm @(ViewBag.Moneda == "ARS" ? "btn-dark" : "btn-outline-dark")">ARS ($)</a>
+                <a asp-action="Index" asp-route-moneda="USD" class="btn btn-sm @(ViewBag.Moneda == "USD" ? "btn-success" : "btn-outline-success")">USD (U$D)</a>
+        </div>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@(item.Huesped?.Apellido ?? "Sin Nombre"), @(item.Huesped?.Nombre ?? "")</td>
+                    
+                    <td>@item.TipoHabitacion?.Nombre</td>
+                    
+                    <td>
+                        @if (item.IdHabitacion.HasValue)
+                        {
+                            <span class="badge bg-success" style="padding: 6px; border-radius: 4px;">
+                                @item.Habitacion?.Numero
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark" style="padding: 6px; border-radius: 4px;">
+                                ⚠️ Pendiente
+                            </span>
+                        }
+                    </td>
+
+                    @* --- CELDA NUEVA PARA EL ESTADO --- *@
+                    <td>
+                        @switch (item.Estado)
+                        {
+                            case "Pendiente":
+                                <span class="badge bg-secondary">Pendiente</span>
+                                break;
+                            case "Activa":
+                                <span class="badge bg-primary">Activa</span>
+                                break;
+                            case "Finalizada":
+                                <span class="badge bg-success">Finalizada</span>
+                                break;
+                            case "Cancelada":
+                                <span class="badge bg-danger">Cancelada</span>
+                                break;
+                            default:
+                                <span class="badge bg-light text-dark">@item.Estado</span>
+                                break;
+                        }
+                    </td>
+                    
+                    <td>@item.FechaInicio.ToShortDateString()</td>
+                    <td>@item.FechaFin.ToShortDateString()</td>
+                    
+                    <td class="text-center">
+                        @if (item.Estado == "Pendiente" && SesionUsuario.Instancia.TienePermiso("Cancelar Reserva"))
+                        {
+                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar esta reserva?')">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </button>
+                            </form>
+                        }
+
+                        @* --- BOTÓN DE CHECK-OUT (Solo si está activa) --- *@
+                        @if (item.Estado == "Activa")
+                        {
+                            <form asp-action="Finalizar" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-info text-white" onclick="return confirm('¿Confirmar Check-out?')">
+                                    Check-out
+                                </button>
+                            </form>
+                        }
+
+                        @* --- ACCIONES DE GESTIÓN (Admin/Recepción) --- *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Modificar Reserva"))
+                        {
+                            <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-warning">Editar</a>
+                        }
+                        
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                        {
+                            <a asp-action="Delete" asp-route-id="@item.IdReserva" class="btn btn-sm btn-danger">Eliminar</a>
+                        }
+                    </td>
+
+                   <td>
+                        <div class="text-end">
+                            @{
+                                // 1. Configuramos el Decorador según la elección del usuario
+                                SistemaReserva.Patters.IPrecioDisplay visualizador = new SistemaReserva.Patters.PrecioPesosDisplay();
+
+                                if (ViewBag.Moneda == "USD" && ViewBag.Cotizacion != null) 
+                                {
+                                    visualizador = new SistemaReserva.Patters.PrecioDolarDecorator(visualizador, (decimal)ViewBag.Cotizacion);
+                                }
+
+                                // 2. Usamos el visualizador para todos los montos
+                                string precioTotalFormateado = visualizador.Formatear(item.PrecioTotal);
+                                string precioBaseFormateado = item.TipoHabitacion != null 
+                                                            ? visualizador.Formatear(item.TipoHabitacion.PrecioBase) 
+                                                            : "";
+                            }
+
+                            @if (item.Estado == "Finalizada")
+                            {
+                                <span class="text-success fw-bold">@precioTotalFormateado</span>
+                                <br /><small class="text-muted">Pagado</small>
+                            }
+                            else
+                            {
+                                <span class="fw-bold">@precioTotalFormateado</span>
+                                <br /><small class="text-muted">(@precioBaseFormateado c/u)</small>
+                            }
+                        </div>
+                    </td>
+
+                    @* El TD de las noches queda igual, ya que no depende de la moneda *@
+                    <td>
+                        @{
+                            int noches = (item.FechaFin - item.FechaInicio).Days;
+                            if (noches <= 0) noches = 1;
+                        }
+                        <span class="badge bg-light text-dark border">
+                            @noches @(noches == 1 ? "noche" : "noches")
+                        </span>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

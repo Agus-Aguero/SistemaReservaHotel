@@ -1,0 +1,18 @@
+@model IEnumerable<SistemaReserva.Models.Persona>
+
+<html>
+    <head>
+        <title>Persona</title>
+    </head>
+    <body>
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Nombre); //body recursividad entre model
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>
