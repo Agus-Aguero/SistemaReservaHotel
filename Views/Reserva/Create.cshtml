@@ -1,3 +1,4 @@
+@using SistemaReserva.Patters
 @model SistemaReserva.Models.Reserva
 
 @{
@@ -10,6 +11,17 @@
 <hr />
 <div class="row">
     <div class="col-md-6">
+            @if (ViewData["IdPersona"] == null || !((SelectList)ViewData["IdPersona"]).Any())
+            {
+                <div class="alert alert-info shadow-sm">
+                    <i class="fas fa-user-edit"></i> 
+                    <strong>Perfil incompleto:</strong> Para realizar una reserva, primero necesitamos tus datos de contacto.
+                    @* Cambiamos el controlador a Huesped *@
+                    <a asp-controller="Huesped" asp-action="Create" class="btn btn-sm btn-info text-white ms-2">
+                        Completar mis datos
+                    </a>
+                </div>
+            }
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
@@ -40,6 +52,30 @@
                 <label class="control-label">Fecha de Salida:</label>
                 <input asp-for="FechaFin" type="date" class="form-control" />
                 <span asp-validation-for="FechaFin" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="control-label">Datos del Huésped</label>
+                
+                @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                {
+                    @* 1. Si es Huésped: Mostramos el combo bloqueado y un campo oculto *@
+                    <select asp-for="IdPersona" class="form-control bg-light" 
+                            asp-items='(SelectList)ViewData["IdPersona"]' disabled>
+                    </select>
+                    
+                    @* El campo 'disabled' no se envía al servidor, así que necesitamos este hidden *@
+                    <input type="hidden" asp-for="IdPersona" />
+                }
+                else
+                {
+                    @* 2. Si es Admin: Combo normal desplegable *@
+                    <select asp-for="IdPersona" class="form-control" 
+                            asp-items='(SelectList)ViewData["IdPersona"]'>
+                        <option value="">-- Seleccione un Huésped --</option>
+                    </select>
+                }
+                <span asp-validation-for="IdPersona" class="text-danger"></span>
             </div>
 
             <div class="form-group">

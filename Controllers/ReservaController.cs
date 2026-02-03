@@ -46,12 +46,24 @@ namespace SistemaReserva.Controllers
         // GET: Reservas/Create
         public IActionResult Create()
         {
-            // Cargamos los Huéspedes (Personas)
-            ViewBag.IdPersona = new SelectList(_context.Persona, "IdPersona", "Apellido");
-            
-            // Cargamos los Tipos de Habitación (Suite, Doble, etc.)
-            ViewBag.IdTipoHabitacion = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre");
-            
+            if (!SesionUsuario.Instancia.TienePermiso("Crear Reserva")) return Forbid();
+
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            var esAdminORecepcion = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+
+            // Buscamos en la tabla de Huespedes (que hereda de Persona)
+            IQueryable<Huesped> listaHuespedes = _context.Persona.OfType<Huesped>();
+
+            if (!esAdminORecepcion)
+            {
+                // Filtramos para que el Huésped solo se vea a sí mismo
+                listaHuespedes = listaHuespedes.Where(h => h.Email == emailLogueado);
+            }
+
+            // El nombre del campo en el SelectList sigue siendo IdPersona porque lo hereda
+            ViewData["IdPersona"] = new SelectList(listaHuespedes, "IdPersona", "Apellido");
+            ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre");
+
             return View();
         }
 
