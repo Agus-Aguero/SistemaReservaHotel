@@ -1,0 +1,96 @@
+@model SistemaReserva.Models.Huesped
+
+@{
+    ViewData["Title"] = "Perfil del Huésped";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Ficha del Huésped</h1>
+        <span class="badge bg-primary">Huésped</span>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white">
+            <h5 class="mb-0 text-primary">Datos Personales</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Nombre Completo</dt>
+                <dd class="col-sm-9">@Model.Apellido, @Model.Nombre</dd>
+
+                <dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9 text-info">@Model.Email</dd>
+
+                <dt class="col-sm-3">Ciudad</dt>
+                <dd class="col-sm-9">@(Model.Ciudad?? "No especificada")</dd>
+
+                <dt class="col-sm-3">Provincia</dt>
+                <dd class="col-sm-9">@(Model.Provincia ?? "No especificada")</dd>
+
+                <dt class="col-sm-3">País</dt>
+                <dd class="col-sm-9">@(Model.Pais ?? "No especificado")</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h3><i class="fas fa-history"></i> Historial de Estadías</h3>
+        <hr />
+
+        @if (Model.Reservas != null && Model.Reservas.Any())
+        {
+            <table class="table table-hover mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                        <th>Categoría</th>
+                        <th>Hab.</th>
+                        <th>Estado</th>
+                        <th class="text-end">Monto Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var res in Model.Reservas.OrderByDescending(r => r.FechaInicio))
+                    {
+                        <tr>
+                            <td>@res.FechaInicio.ToShortDateString()</td>
+                            <td>@res.FechaFin.ToShortDateString()</td>
+                            <td>@res.TipoHabitacion?.Nombre</td>
+                            <td>
+                                @if (res.IdHabitacion.HasValue)
+                                {
+                                    <span class="badge bg-dark">#@res.Habitacion?.Numero</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Sin asignar</span>
+                                }
+                            </td>
+                            <td>
+                                @{
+                                    var color = res.Estado == "Finalizada" ? "bg-success" : 
+                                                res.Estado == "Activa" ? "bg-primary" : "bg-warning text-dark";
+                                }
+                                <span class="badge @color">@res.Estado</span>
+                            </td>
+                            <td class="text-end fw-bold">@res.PrecioTotal.ToString("C2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-light border">
+                Este huésped no tiene reservas previas en el sistema.
+            </div>
+        }
+    </div>
+
+    <div class="mt-4 pb-5">
+        <a asp-action="Edit" asp-route-id="@Model.IdPersona" class="btn btn-warning">Editar Datos</a>
+        <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+    </div>
+</div>

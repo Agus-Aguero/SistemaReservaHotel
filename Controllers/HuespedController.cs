@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SistemaReserva.Models;
+using SistemaReserva.Patters;
 
 namespace SistemaReserva.Controllers
 {
@@ -48,21 +49,30 @@ namespace SistemaReserva.Controllers
             return View(huesped);
         }
 
+        // GET: Huesped/Create
         public IActionResult Create()
         {
-            return View();
+            // Solo permitimos si es el usuario logueado quien crea su perfil
+            var nuevoHuesped = new Huesped
+            {
+                Email = SesionUsuario.Instancia.Email
+            };
+
+            return View(nuevoHuesped);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Nombre,Apellido,Genero,Provincia,Pais,FechaNacimiento,Email,Telefono,Ciudad,Nacionalidad")] Huesped huesped)
         {
+            // Forzamos el email de la sesión por seguridad
+            huesped.Email = SesionUsuario.Instancia.Email;
+
             if (ModelState.IsValid)
             {
-                // IMPORTANTE: Aquí NO debe haber ninguna línea que mencione "huesped.Rol"
-                _context.Add(huesped); 
+                _context.Add(huesped);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction("Index", "Reserva"); // Lo mandamos a reservar
             }
             return View(huesped);
         }
