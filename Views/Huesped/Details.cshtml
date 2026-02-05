@@ -1,3 +1,4 @@
+@using SistemaReserva.Patters
 @model SistemaReserva.Models.Huesped
 
 @{
@@ -90,7 +91,21 @@
     </div>
 
     <div class="mt-4 pb-5">
-        <a asp-action="Edit" asp-route-id="@Model.IdPersona" class="btn btn-warning">Editar Datos</a>
-        <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+        <a asp-action="Edit" asp-route-id="@Model.IdPersona" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Editar mis Datos
+        </a>
+
+        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+        {
+            @* Solo el Admin ve el botón de volver al listado general *@
+            <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+        }
+        else
+        {
+            @* El Huésped vuelve a su panel de reservas *@
+            <a asp-controller="Reserva" asp-action="Index" class="btn btn-secondary">
+                Ir a mis Reservas
+            </a>
+        }
     </div>
 </div>

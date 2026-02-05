@@ -26,27 +26,20 @@ namespace SistemaReserva.Controllers
             return View(huespedes);
         }
 
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details()
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            
+            var huesped = await _context.Persona.OfType<Huesped>()
+                .Include(h => h.Reservas)           // IMPORTANTE: Para ver el historial
+                    .ThenInclude(r => r.TipoHabitacion) // Para ver el nombre de la categoría
+                .Include(h => h.Reservas)
+                    .ThenInclude(r => r.Habitacion)     // Para ver el número de habitación
+                .FirstOrDefaultAsync(h => h.Email == emailLogueado);
 
-            var huesped = await _context.Persona
-                .OfType<Huesped>()
-                .Include(p => p.Reservas) // Cargamos la colección de reservas
-                    .ThenInclude(r => r.TipoHabitacion) // Cargamos el objeto Tipo dentro de Reserva
-                .Include(p => p.Reservas)
-                    .ThenInclude(r => r.Habitacion) // Cargamos el objeto Habitacion dentro de Reserva
-                .FirstOrDefaultAsync(p => p.IdPersona == id);
+            if (huesped == null) return RedirectToAction("Create");
 
-            if (huesped == null)
-            {
-                return NotFound();
-            }
-
-            return View(huesped);
+            return View("Details", huesped); // Le decimos que use la vista Details.cshtml
         }
 
         // GET: Huesped/Create
@@ -96,33 +89,38 @@ namespace SistemaReserva.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-
-        public async Task<IActionResult> Edit(int id, [Bind("IdPersona,Nombre,Apellido,Genero,Provincia,Pais,FechaNacimiento,Email,Telefono,Ciudad,Nacionalidad")] Huesped huesped)
+        public async Task<IActionResult> Edit(int id, Huesped huesped)
         {
-            if (id != huesped.IdPersona)
-            {
-                return NotFound();
-            }
+            if (id != huesped.IdPersona) return NotFound();
 
             if (ModelState.IsValid)
             {
                 try
                 {
+                    // Si NO es admin, nos aseguramos de que no haya hackeado el HTML para cambiar el email
+                    if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                    {
+                        huesped.Email = SesionUsuario.Instancia.Email;
+                    }
+
                     _context.Update(huesped);
                     await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!HuespedExists(huesped.IdPersona))
+                    
+                    // REDIRECCIÓN INTELIGENTE
+                    if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                     {
-                        return NotFound();
+                        return RedirectToAction(nameof(Index));
                     }
                     else
                     {
-                        throw;
+                        TempData["Success"] = "Perfil actualizado con éxito.";
+                        return RedirectToAction("Index", "Home");
                     }
                 }
-                return RedirectToAction(nameof(Index));
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Manejo de errores...
+                }
             }
             return View(huesped);
         }

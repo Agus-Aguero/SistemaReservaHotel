@@ -1,70 +1,99 @@
+@using SistemaReserva.Patters
 @model SistemaReserva.Models.Huesped
 
 @{
     ViewData["Title"] = "Editar Huesped";
 }
 
-<h4>Editar Huesped</h4>
+@{
+    bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+    ViewData["Title"] = esAdmin ? "Editar Huésped" : "Mi Perfil";
+}
 
-<div>
-    <form asp-action="Edit">
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-        <input type="hidden" asp-for="IdPersona" />
-        <div class="form-group">
-            <label asp-for="Nombre" class="control-label"></label>
-            <input asp-for="Nombre" class="form-control" />
-            <span asp-validation-for="Nombre" class="text-danger"></span>
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">@ViewData["Title"]</h4>
         </div>
-        <div class="form-group">
-            <label asp-for="Apellido" class="control-label"></label>
-            <input asp-for="Apellido" class="form-control" />
-            <span asp-validation-for="Apellido" class="text-danger"></span>
+        <div class="card-body">
+            <form asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="IdPersona" />
+
+                <div class="row">
+                    @* --- COLUMNA IZQUIERDA: Identidad --- *@
+                    <div class="col-md-6">
+                        <h5 class="text-muted border-bottom pb-2">Identidad</h5>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="Nombre" class="control-label fw-bold"></label>
+                            <input asp-for="Nombre" class="form-control" />
+                            <span asp-validation-for="Nombre" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Apellido" class="control-label fw-bold"></label>
+                            <input asp-for="Apellido" class="form-control" />
+                            <span asp-validation-for="Apellido" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Email" class="control-label fw-bold"></label>
+                            @if (esAdmin) {
+                                <input asp-for="Email" class="form-control" />
+                            } else {
+                                <input asp-for="Email" class="form-control bg-light" readonly />
+                            }
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    @* --- COLUMNA DERECHA: Contacto y Ubicación --- *@
+                    <div class="col-md-6">
+                        <h5 class="text-muted border-bottom pb-2">Contacto y Origen</h5>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Telefono" class="control-label fw-bold"></label>
+                            <input asp-for="Telefono" class="form-control" />
+                            <span asp-validation-for="Telefono" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Pais" class="control-label fw-bold"></label>
+                            <input asp-for="Pais" class="form-control" />
+                            <span asp-validation-for="Pais" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Provincia" class="control-label fw-bold"></label>
+                            <input asp-for="Provincia" class="form-control" />
+                            <span asp-validation-for="Provincia" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Ciudad" class="control-label fw-bold"></label>
+                            <input asp-for="Ciudad" class="form-control" />
+                            <span asp-validation-for="Ciudad" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div class="form-group text-end mt-4">
+                    @if (esAdmin)
+                    {
+                        <a asp-action="Index" class="btn btn-secondary me-2">Volver al Listado</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary me-2">Cancelar</a>
+                    }
+                    <button type="submit" class="btn btn-primary px-5">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
         </div>
-        <div class="form-group">
-            <label asp-for="Genero" class="control-label"></label>
-            <input asp-for="Genero" class="form-control" />
-            <span asp-validation-for="Genero" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Telefono" class="control-label"></label>
-            <input asp-for="Telefono" class="form-control" />
-            <span asp-validation-for="Telefono" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Email" class="control-label"></label>
-            <input asp-for="Email" class="form-control" />
-            <span asp-validation-for="Email" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="FechaNacimiento" class="control-label"></label>
-            <input asp-for="FechaNacimiento" type="date" class="form-control" />
-            <span asp-validation-for="FechaNacimiento" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Pais" class="control-label"></label>
-            <input asp-for="Pais" class="form-control" />
-            <span asp-validation-for="Pais" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Provincia" class="control-label"></label>
-            <input asp-for="Provincia" class="form-control" />
-            <span asp-validation-for="Provincia" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Ciudad" class="control-label"></label>
-            <input asp-for="Ciudad" class="form-control" />
-            <span asp-validation-for="Ciudad" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Nacionalidad" class="control-label"></label>
-            <input asp-for="Nacionalidad" class="form-control" />
-            <span asp-validation-for="Nacionalidad" class="text-danger"></span>
-        </div>
-        <div class="form-group">
-            <input type="submit" value="Guardar" class="btn btn-primary" />
-        </div>
-    </form>
-</div>
-<div>
-    <a asp-action="Index" class="btn btn-secondary">Volver a la Lista</a>
+    </div>
 </div>

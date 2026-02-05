@@ -10,6 +10,13 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/SistemaReserva.styles.css" asp-append-version="true" />
 </head>
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="fas fa-check-circle"></i> @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 <body>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
@@ -27,8 +34,8 @@
 
                         @if (SesionUsuario.Instancia.Email != null)
                         {
-                            @* Gestión de Usuarios e informe de Permisos *@
-                            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                            @* 1. Usuarios e informe de Permisos (Admin) *@
+                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                             {
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle text-dark" href="#" id="navbarDropdownPersonas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -38,14 +45,13 @@
                                         <li><a class="dropdown-item" asp-controller="Huesped" asp-action="Index">Huéspedes</a></li>
                                         <li><a class="dropdown-item" asp-controller="Persona" asp-action="Index">Todas las Personas</a></li>
                                         <li><hr class="dropdown-divider"></li>
-                                        @* IMPORTANTE: Agregamos el ID del usuario actual para que el controlador sepa de quién mostrar el árbol *@
                                         <li><a class="dropdown-item text-primary" asp-controller="Permisos" asp-action="Gestionar" asp-route-idUsuario="1">🌳 Ver Árbol de Permisos</a></li>
                                     </ul>
                                 </li>
                             }
 
-                            @* Gestión de Infraestructura *@
-                            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones"))
+                            @* 2. Infraestructura (Admin) *@
+                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones"))
                             {
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle text-dark" href="#" id="navbarDropdownHab" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -58,24 +64,39 @@
                                 </li>
                             }
 
-                            @* Unificamos Reservas: Si tiene permiso de Ver O de Crear, se muestra un solo botón *@
-                            @if (SesionUsuario.Instancia.TienePermiso("Ver Reservas") || SesionUsuario.Instancia.TienePermiso("Crear Reserva"))
+                            @* 3. Reservas (Todos con permiso) *@
+                            if (SesionUsuario.Instancia.TienePermiso("Ver Reservas") || SesionUsuario.Instancia.TienePermiso("Crear Reserva"))
                             {
                                 <li class="nav-item">
                                     <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📅 Reservas</a>
                                 </li>
                             }
 
-                            <li class="nav-item ms-auto">
-                                <a class="nav-link text-danger" asp-controller="Account" asp-action="Logout">
-                                    🚪 Salir (@SesionUsuario.Instancia.Email)
+                            @* 4. MI CUENTA (Lado derecho) *@
+                            <li class="nav-item dropdown ms-auto">
+                                <a class="nav-link dropdown-toggle btn btn-light border-0" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    👤 @SesionUsuario.Instancia.Email
                                 </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navbarDropdownUser">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Huesped" asp-action="Details">
+                                            <i class="fas fa-id-card"></i> Mis Datos (Perfil)
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout">
+                                            🚪 Cerrar Sesión
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         else
                         {
+                            @* BOTÓN DE INGRESAR CUANDO NO HAY SESIÓN *@
                             <li class="nav-item ms-auto">
-                                <a class="nav-link btn btn-outline-primary" asp-controller="Account" asp-action="Login">🔑 Ingresar</a>
+                                <a class="nav-link btn btn-outline-primary px-4" asp-controller="Account" asp-action="Login">🔑 Ingresar</a>
                             </li>
                         }
                     </ul>
