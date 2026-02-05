@@ -66,14 +66,24 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
 
         // E. Creamos el Usuario Admin
-        if (!context.Usuario.Any())
+        // Dentro de la lógica de creación de usuarios en el Seeder
+        if (!context.Usuario.Any(u => u.Email == "admin@argentower.com"))
         {
-            context.Usuario.Add(new Usuario
-            {
-                Email = "admin@hotel.com",
-                Password = Encriptador.GenerarHash("admin123"),
-                Perfil = familiaAdmin 
-            });
+            // El Administrador de uso diario
+            var adminUser = new Usuario {
+                Email = "admin@argentower.com",
+                Password = Encriptador.GenerarHash("Admin123"),
+                Perfil = familiaAdmin // Le asignamos el Composite de Admin
+            };
+
+            // El Usuario Root de emergencia
+            var rootUser = new Usuario {
+                Email = "root@argentower.com",
+                Password = Encriptador.GenerarHash("RootEmergency2026"),
+                Perfil = familiaAdmin // También es Admin
+            };
+
+            context.Usuario.AddRange(adminUser, rootUser);
             context.SaveChanges();
         }
     }

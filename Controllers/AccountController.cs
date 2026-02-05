@@ -104,6 +104,45 @@ namespace SistemaReserva.Controllers
             return View(model);
         }
 
+
+        // GET: Account/ChangePassword
+        public IActionResult ChangePassword()
+        {
+            if (SesionUsuario.Instancia.Email == null) return RedirectToAction("Login");
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            var usuario = await _context.Usuario.FirstOrDefaultAsync(u => u.Email == emailLogueado);
+
+            if (usuario == null) return NotFound();
+
+            // 1. Verificar que la contraseña actual sea correcta
+            // Asumimos que tu Encriptador tiene un método para comparar o generar el hash
+            var hashActual = Encriptador.GenerarHash(model.CurrentPassword);
+            
+            if (usuario.Password != hashActual)
+            {
+                ModelState.AddModelError("CurrentPassword", "La contraseña actual no es correcta.");
+                return View(model);
+            }
+
+            // 2. Actualizar con la nueva contraseña
+            usuario.Password = Encriptador.GenerarHash(model.NewPassword);
+            _context.Update(usuario);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Contraseña cambiada con éxito.";
+            
+            return RedirectToAction("Index", "Home");
+        }
+
         // Método auxiliar para romper la limitación de EF Core
         private async Task CargarHijosRecursivo(Componente componente)
         {

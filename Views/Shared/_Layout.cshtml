@@ -78,15 +78,28 @@
                                     👤 @SesionUsuario.Instancia.Email
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navbarDropdownUser">
+                                    
+                                    @* Ocultamos "Mis Datos" para cualquier Administrador *@
+                                    @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Huesped" asp-action="DetailsAccount">
+                                                <i class="fas fa-id-card"></i> Mis Datos (Perfil)
+                                            </a>
+                                        </li>
+                                    }
+
                                     <li>
-                                        <a class="dropdown-item" asp-controller="Huesped" asp-action="Details">
-                                            <i class="fas fa-id-card"></i> Mis Datos (Perfil)
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
+                                            <i class="fas fa-key"></i> Cambiar Contraseña
                                         </a>
                                     </li>
+
                                     <li><hr class="dropdown-divider"></li>
+                                    
                                     <li>
                                         <a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout">
-                                            🚪 Cerrar Sesión
+                                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                                         </a>
                                     </li>
                                 </ul>

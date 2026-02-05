@@ -65,7 +65,7 @@ namespace SistemaReserva.Controllers
             {
                 _context.Add(huesped);
                 await _context.SaveChangesAsync();
-                return RedirectToAction("Index", "Reserva"); // Lo mandamos a reservar
+                return RedirectToAction("Index", "Home");
             }
             return View(huesped);
         }
