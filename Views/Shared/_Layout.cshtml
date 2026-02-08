@@ -43,9 +43,10 @@
                                     </a>
                                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownPersonas">
                                         <li><a class="dropdown-item" asp-controller="Huesped" asp-action="Index">Huéspedes</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Recepcionista" asp-action="Index">Recepcionistas (Staff)</a></li>
                                         <li><a class="dropdown-item" asp-controller="Persona" asp-action="Index">Todas las Personas</a></li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-primary" asp-controller="Permisos" asp-action="Gestionar" asp-route-idUsuario="1">🌳 Ver Árbol de Permisos</a></li>
+                                       @* <li><hr class="dropdown-divider"></li>*@
+                                        @*<li><a class="dropdown-item text-primary" asp-controller="Permisos" asp-action="Gestionar" asp-route-idUsuario="1">🌳 Ver Árbol de Permisos</a></li>*@
                                     </ul>
                                 </li>
                             }
@@ -64,11 +65,33 @@
                                 </li>
                             }
 
-                            @* 3. Reservas (Todos con permiso) *@
-                            if (SesionUsuario.Instancia.TienePermiso("Ver Reservas") || SesionUsuario.Instancia.TienePermiso("Crear Reserva"))
+                            @* 3. Sección de Reservas y Gestión Operativa *@
+                            @if (SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
                             {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📅 Reservas</a>
+                                @* Si es Admin o Recepcionista (Gestionan el hotel) *@
+                                if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                                    SesionUsuario.Instancia.TienePermiso("CheckIn")) 
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📋 Panel de Reservas</a>
+                                    </li>
+                                    @*<li class="nav-item">
+                                        <a class="nav-link text-primary fw-bold" asp-controller="Habitacion" asp-action="Disponibilidad">🔑 Check-In/Out</a>
+                                    </li>*@
+                                }
+                                else @* Es un Huésped (Solo ve lo suyo) *@
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📅 Mis Reservas</a>
+                                    </li>
+                                }
+                            }
+                            @if (SesionUsuario.Instancia.TienePermiso("CheckIn") || SesionUsuario.Instancia.TienePermiso("CheckOut"))
+                            {
+                               <li class="nav-item">
+                                    <a class="nav-link text-primary fw-bold" asp-controller="Habitacion" asp-action="Disponibilidad">
+                                        @*<i class="fas fa-key"></i> Check-In/Out*@
+                                    </a>
                                 </li>
                             }
 
@@ -82,11 +105,9 @@
                                     @* Ocultamos "Mis Datos" para cualquier Administrador *@
                                     @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                                     {
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Huesped" asp-action="DetailsAccount">
-                                                <i class="fas fa-id-card"></i> Mis Datos (Perfil)
-                                            </a>
-                                        </li>
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="MiPerfil">
+                                            <i class="fas fa-id-card"></i> Mis Datos (Perfil)
+                                        </a>
                                     }
 
                                     <li>
@@ -139,6 +160,8 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @* Tu nuevo archivo centralizado *@
+    <script src="~/js/scripts.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

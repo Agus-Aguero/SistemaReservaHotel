@@ -6,82 +6,67 @@
 }
 
 <h2>Nueva Reserva</h2>
-<p class="text-muted">El huésped selecciona el tipo de habitación. El número se asignará al momento del ingreso.</p>
-
+<p class="text-muted">El número de habitación se asignará al momento del ingreso.</p>
 <hr />
+
 <div class="row">
     <div class="col-md-6">
-            @if (ViewData["IdPersona"] == null || !((SelectList)ViewData["IdPersona"]).Any())
-            {
-                <div class="alert alert-info shadow-sm">
-                    <i class="fas fa-user-edit"></i> 
-                    <strong>Perfil incompleto:</strong> Para realizar una reserva, primero necesitamos tus datos de contacto.
-                    @* Cambiamos el controlador a Huesped *@
-                    <a asp-controller="Huesped" asp-action="Create" class="btn btn-sm btn-info text-white ms-2">
-                        Completar mis datos
-                    </a>
-                </div>
-            }
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
             <div class="form-group mb-3">
-                <label class="control-label">Seleccionar Huésped:</label>
-                <select asp-for="IdPersona" class="form-control" asp-items="ViewBag.IdPersona">
-                    <option value="">-- Seleccione el Huésped --</option>
-                </select>
+                <label class="control-label fw-bold">Huésped Responsable:</label>
+    
+                @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                {
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <select asp-for="IdPersona" id="buscadorHuesped" class="form-select" asp-items='(SelectList)ViewData["IdPersona"]'>
+                            <option value="">-- Escriba para buscar huésped --</option>
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    @* Lógica para el huésped (Solo lectura) *@
+                    var item = ((SelectList)ViewData["IdPersona"]).FirstOrDefault();
+                    <input type="text" class="form-control bg-light" value="@(item?.Text ?? "Cargando...")" readonly />
+                    <input type="hidden" asp-for="IdPersona" value="@(item?.Value ?? "")" />
+                }
                 <span asp-validation-for="IdPersona" class="text-danger"></span>
             </div>
 
             <div class="form-group mb-3">
-                <label class="control-label">Categoría de Habitación:</label>
+                <label class="control-label fw-bold">Categoría de Habitación:</label>
                 <select asp-for="IdTipoHabitacion" class="form-control" asp-items="ViewBag.IdTipoHabitacion">
-                    <option value="">-- Seleccione Tipo (Suite, Doble, etc.) --</option>
+                    <option value="">-- Seleccione Tipo --</option>
                 </select>
                 <span asp-validation-for="IdTipoHabitacion" class="text-danger"></span>
             </div>
 
-            <div class="form-group mb-3">
-                <label class="control-label">Fecha de Entrada:</label>
-                <input asp-for="FechaInicio" type="date" class="form-control" />
-                <span asp-validation-for="FechaInicio" class="text-danger"></span>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="control-label fw-bold">Entrada:</label>
+                    <input asp-for="FechaInicio" type="date" class="form-control" />
+                    <span asp-validation-for="FechaInicio" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="control-label fw-bold">Salida:</label>
+                    <input asp-for="FechaFin" type="date" class="form-control" />
+                    <span asp-validation-for="FechaFin" class="text-danger"></span>
+                </div>
             </div>
 
-            <div class="form-group mb-3">
-                <label class="control-label">Fecha de Salida:</label>
-                <input asp-for="FechaFin" type="date" class="form-control" />
-                <span asp-validation-for="FechaFin" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mb-3">
-                <label class="control-label">Datos del Huésped</label>
-                
-                @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-                {
-                    @* 1. Si es Huésped: Mostramos el combo bloqueado y un campo oculto *@
-                    <select asp-for="IdPersona" class="form-control bg-light" 
-                            asp-items='(SelectList)ViewData["IdPersona"]' disabled>
-                    </select>
-                    
-                    @* El campo 'disabled' no se envía al servidor, así que necesitamos este hidden *@
-                    <input type="hidden" asp-for="IdPersona" />
-                }
-                else
-                {
-                    @* 2. Si es Admin: Combo normal desplegable *@
-                    <select asp-for="IdPersona" class="form-control" 
-                            asp-items='(SelectList)ViewData["IdPersona"]'>
-                        <option value="">-- Seleccione un Huésped --</option>
-                    </select>
-                }
-                <span asp-validation-for="IdPersona" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <button type="submit" class="btn btn-success">Confirmar Reserva</button>
-                <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+            <div class="form-group mt-4">
+                <button type="submit" class="btn btn-success px-4 shadow-sm">
+                    <i class="fas fa-check-circle me-1"></i> Confirmar Reserva
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </form>
     </div>
 </div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

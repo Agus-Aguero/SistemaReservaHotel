@@ -32,6 +32,8 @@ using (var scope = app.Services.CreateScope())
         var patModificarReserva = new Patente { Nombre = "Modificar Reserva" };
         var patGestionarHabitaciones = new Patente { Nombre = "Gestionar Habitaciones" };
         var patGestionarUsuarios = new Patente { Nombre = "Gestionar Usuarios" };
+        var patCheckIn = new Patente { Nombre = "CheckIn" };
+        var patCheckOut = new Patente { Nombre = "CheckOut" };
 
         // B. Creamos Familias (Compuestos del Composite)
         var familiaAdmin = new Familia { Nombre = "Administrador Global" };
@@ -52,11 +54,15 @@ using (var scope = app.Services.CreateScope())
         // Agregamos Ver Reservas a Recepción
         familiaRecepcion.Agregar(familiaHuesped);  // Así el recepcionista también puede crear/ver/cancelar
         familiaRecepcion.Agregar(patModificarReserva);
+        familiaRecepcion.Agregar(patCheckIn);
+        familiaRecepcion.Agregar(patCheckOut);
 
         // El Admin hereda TODO lo de Recepción (incluyendo Ver Reservas)
         familiaAdmin.Agregar(familiaRecepcion); 
         familiaAdmin.Agregar(patGestionarHabitaciones);
         familiaAdmin.Agregar(patGestionarUsuarios);
+        familiaAdmin.Agregar(patCheckIn);
+        familiaAdmin.Agregar(patCheckOut);
 
         // Forzamos a EF a que vea que las familias cambiaron
         context.Entry(familiaRecepcion).State = EntityState.Modified;
@@ -73,14 +79,18 @@ using (var scope = app.Services.CreateScope())
             var adminUser = new Usuario {
                 Email = "admin@argentower.com",
                 Password = Encriptador.GenerarHash("Admin123"),
-                Perfil = familiaAdmin // Le asignamos el Composite de Admin
+                Perfil = familiaAdmin, // Le asignamos el Composite de Admin
+                PreguntaSeguridad = "¿Nombre del hotel?",
+                RespuestaSeguridad = "ArgenTower"
             };
 
             // El Usuario Root de emergencia
             var rootUser = new Usuario {
                 Email = "root@argentower.com",
                 Password = Encriptador.GenerarHash("RootEmergency2026"),
-                Perfil = familiaAdmin // También es Admin
+                Perfil = familiaAdmin, // También es Admin
+                PreguntaSeguridad = "¿Nombre del hotel?",
+                RespuestaSeguridad = "ArgenTower"
             };
 
             context.Usuario.AddRange(adminUser, rootUser);

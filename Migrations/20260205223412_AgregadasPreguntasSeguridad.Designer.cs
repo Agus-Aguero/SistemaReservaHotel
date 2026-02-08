@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SistemaReserva.Models;
 
@@ -11,9 +12,11 @@ using SistemaReserva.Models;
 namespace SistemaReserva.Migrations
 {
     [DbContext(typeof(SistemaReservaContext))]
-    partial class SistemaReservaContextModelSnapshot : ModelSnapshot
+    [Migration("20260205223412_AgregadasPreguntasSeguridad")]
+    partial class AgregadasPreguntasSeguridad
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,6 +80,11 @@ namespace SistemaReserva.Migrations
                     b.Property<string>("Ciudad")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -97,16 +105,11 @@ namespace SistemaReserva.Migrations
                     b.Property<string>("Telefono")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TipoPersona")
-                        .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("nvarchar(13)");
-
                     b.HasKey("IdPersona");
 
-                    b.ToTable("Persona");
+                    b.ToTable("Persona", (string)null);
 
-                    b.HasDiscriminator<string>("TipoPersona").HasValue("Base");
+                    b.HasDiscriminator().HasValue("Persona");
 
                     b.UseTphMappingStrategy();
                 });
@@ -245,20 +248,7 @@ namespace SistemaReserva.Migrations
                     b.ToTable("Usuario");
                 });
 
-            modelBuilder.Entity("SistemaReserva.Models.Huesped", b =>
-                {
-                    b.HasBaseType("SistemaReserva.Models.Persona");
-
-                    b.Property<string>("Pais")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Provincia")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasDiscriminator().HasValue("Huesped");
-                });
-
-            modelBuilder.Entity("SistemaReserva.Models.Recepcionista", b =>
+            modelBuilder.Entity("SistemaReserva.Models.Empleado", b =>
                 {
                     b.HasBaseType("SistemaReserva.Models.Persona");
 
@@ -271,9 +261,26 @@ namespace SistemaReserva.Migrations
 
                     b.Property<string>("Legajo")
                         .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasIndex("Legajo")
+                        .IsUnique()
+                        .HasFilter("[Legajo] IS NOT NULL");
+
+                    b.HasDiscriminator().HasValue("Empleado");
+                });
+
+            modelBuilder.Entity("SistemaReserva.Models.Huesped", b =>
+                {
+                    b.HasBaseType("SistemaReserva.Models.Persona");
+
+                    b.Property<string>("Pais")
                         .HasColumnType("nvarchar(max)");
 
-                    b.HasDiscriminator().HasValue("Recepcionista");
+                    b.Property<string>("Provincia")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasDiscriminator().HasValue("Huesped");
                 });
 
             modelBuilder.Entity("SistemaReserva.Models.Seguridad.Familia", b =>

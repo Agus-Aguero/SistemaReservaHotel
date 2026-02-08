@@ -18,24 +18,36 @@ namespace SistemaReserva.Controllers
 
         public async Task<IActionResult> Index(string moneda = "ARS")
         {
-            // 1. VALIDACIÓN DE SEGURIDAD (T04 + T02)
-            // Usamos el Singleton para verificar el permiso de forma recursiva
+            // 1. VALIDACIÓN DE SEGURIDAD 
             if (!SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
             {
-                // Si no tiene permiso, lo mandamos al Home con un aviso
                 TempData["Error"] = "No tienes permisos para acceder a la gestión de reservas.";
                 return RedirectToAction("Index", "Home");
             }
 
-            // 2. LÓGICA DE NEGOCIO EXISTENTE
-            var reservas = await _context.Reserva
+            // 2. PREPARAMOS LA CONSULTA (IQueryable permite agregar filtros antes de ir a la DB)
+            var query = _context.Reserva
                 .Include(r => r.Huesped)
                 .Include(r => r.TipoHabitacion)
                 .Include(r => r.Habitacion)
-                .ToListAsync();
+                .AsQueryable();
 
+            // 3. FILTRO DE PRIVACIDAD:
+            // Si no tiene permiso de gestión (es un Huésped), solo traemos sus reservas.
+            // Si es Admin/Recepcionista, la consulta queda igual y ve todo.
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+            {
+                var emailLogueado = SesionUsuario.Instancia.Email;
+                query = query.Where(r => r.Huesped.Email == emailLogueado);
+            }
+
+            // 4. EJECUTAMOS LA CONSULTA FILTRADA
+            var reservas = await query.ToListAsync();
+
+            // 5. LÓGICA DE MONEDA
             ViewBag.Moneda = moneda;
-            if (moneda == "USD") {
+            if (moneda == "USD") 
+            {
                 var service = new DolarService();
                 ViewBag.Cotizacion = await service.ObtenerCotizaciónBlue();
             }
@@ -43,24 +55,39 @@ namespace SistemaReserva.Controllers
             return View(reservas);
         }
 
-        // GET: Reservas/Create
-        public IActionResult Create()
+        // GET: Reserva/Create
+
+       public async Task<IActionResult> Create()
         {
-            if (!SesionUsuario.Instancia.TienePermiso("Crear Reserva")) return Forbid();
+            var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
 
-            var emailLogueado = SesionUsuario.Instancia.Email;
-            var esAdminORecepcion = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            // 1. Verificamos si el usuario actual tiene su perfil completo (solo relevante para Huéspedes)
+            var personaLogueada = await _context.Persona
+                .FirstOrDefaultAsync(p => p.Email.ToLower() == emailLogueado);
 
-            // Buscamos en la tabla de Huespedes (que hereda de Persona)
-            IQueryable<Huesped> listaHuespedes = _context.Persona.OfType<Huesped>();
+            // El Admin siempre puede entrar; el Huésped necesita tener perfil
+            ViewBag.TienePerfil = esAdmin || (personaLogueada != null);
 
-            if (!esAdminORecepcion)
+            // 2. Definimos la consulta de Huéspedes
+            // Usamos _context.Huesped para traer solo a los clientes registrados
+            IQueryable<Huesped> consulta = _context.Huesped;
+
+            if (!esAdmin)
             {
-                // Filtramos para que el Huésped solo se vea a sí mismo
-                listaHuespedes = listaHuespedes.Where(h => h.Email == emailLogueado);
+                // El Huésped común solo se ve a sí mismo para autocompletar
+                consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
+            }
+            else 
+            {
+                // El Admin ve a todos los Huéspedes ordenados por apellido para facilitar la búsqueda
+                consulta = consulta.OrderBy(h => h.Apellido).ThenBy(h => h.Nombre);
             }
 
-            // El nombre del campo en el SelectList sigue siendo IdPersona porque lo hereda
+            var listaHuespedes = await consulta.ToListAsync();
+
+            // 3. Cargamos los ViewData para los Selects
+            // Para el Admin, el texto mostrado será "Apellido, Nombre"
             ViewData["IdPersona"] = new SelectList(listaHuespedes, "IdPersona", "Apellido");
             ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre");
 
@@ -71,43 +98,67 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Reserva reserva)
         {
+            // 1. PRE-VALIDACIÓN: Asignamos el ID de usuario del Singleton antes de validar el modelo
+            reserva.IdUsuario = SesionUsuario.Instancia.IdUsuario;
+
+            // 2. LIMPIEZA: Quitamos las propiedades de navegación de la validación
+            // Esto evita errores si EF intenta validar objetos que no vienen del formulario
+            ModelState.Remove("Usuario");
+            ModelState.Remove("Huesped");
+            ModelState.Remove("TipoHabitacion");
+
             if (ModelState.IsValid)
             {
-                // 1. Contar cuántas habitaciones totales existen de ese TIPO
+                // --- Lógica de disponibilidad (Lo que ya tenías) ---
                 var totalHabitaciones = await _context.Habitacion
                     .CountAsync(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion);
 
-                // 2. Contar reservas que se SOLAPAN con las fechas elegidas
-                // Una reserva se solapa si: (Inicio < FinReservaExistente) Y (Fin > InicioReservaExistente)
                 var reservasOcupadas = await _context.Reserva
                     .CountAsync(r => r.IdTipoHabitacion == reserva.IdTipoHabitacion &&
-                                    r.Estado != "Cancelada" && // Ignoramos las canceladas
+                                    r.Estado != "Cancelada" &&
                                     reserva.FechaInicio < r.FechaFin && 
                                     reserva.FechaFin > r.FechaInicio);
 
-                // 3. Validar si hay cupo
                 if (reservasOcupadas >= totalHabitaciones)
                 {
                     var tipo = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
-                    ModelState.AddModelError("", $"Lo sentimos, no hay habitaciones de tipo '{tipo?.Nombre}' disponibles para el rango de fechas seleccionado.");
+                    ModelState.AddModelError("", $"Lo sentimos, no hay habitaciones de tipo '{tipo?.Nombre}' disponibles.");
                     
-                    // Recargamos los combos para volver a la vista
-                    ViewData["IdPersona"] = new SelectList(_context.Persona, "IdPersona", "Apellido", reserva.IdPersona);
-                    ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
+                    // Recarga de combos en caso de error de disponibilidad
+                    await RecargarDatosVista(reserva);
                     return View(reserva);
                 }
 
-                // --- Si pasó la validación, seguimos con el guardado normal ---
+                // --- Guardado ---
                 var tipoHab = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                 reserva.PrecioTotal = CalcularPresupuesto(reserva.FechaInicio, reserva.FechaFin, tipoHab.PrecioBase);
                 reserva.Estado = "Pendiente";
-                reserva.IdUsuario = SesionUsuario.Instancia.IdUsuario;
 
                 _context.Add(reserva);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
+            // 3. SI EL MODELO NO ES VÁLIDO: Recargamos todo para no perder el nombre
+            await RecargarDatosVista(reserva);
             return View(reserva);
+        }
+
+        // Método auxiliar para no repetir código de recarga
+        private async Task RecargarDatosVista(Reserva reserva)
+        {
+            var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
+            ViewBag.TienePerfil = true;
+            
+            // Volvemos a filtrar para que el Huésped vea su apellido y no "Usuario"
+            IQueryable<Huesped> consulta = _context.Huesped;
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+            {
+                consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
+            }
+
+            ViewData["IdPersona"] = new SelectList(await consulta.ToListAsync(), "IdPersona", "Apellido", reserva.IdPersona);
+            ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
         }
 
 
@@ -144,11 +195,28 @@ namespace SistemaReserva.Controllers
         {
             if (id != reserva.IdReserva) return NotFound();
 
+            // 1. LIMPIEZA DE VALIDACIONES
+            // Esto evita que el formulario rebote por objetos que no están en la vista
+            ModelState.Remove("Huesped");
+            ModelState.Remove("Usuario");
+            ModelState.Remove("TipoHabitacion");
+            ModelState.Remove("Habitacion");
+
             if (ModelState.IsValid)
             {
                 try
                 {
-                    // 1. VALIDACIÓN DE DISPONIBILIDAD (Igual que el Create pero excluyendo esta reserva)
+                    // 2. RECUPERAR DATOS ORIGINALES
+                    // Buscamos la reserva actual sin rastrearla (AsNoTracking) para obtener el IdUsuario original
+                    var reservaOriginal = await _context.Reserva.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.IdReserva == id);
+                    
+                    if (reservaOriginal != null)
+                    {
+                        reserva.IdUsuario = reservaOriginal.IdUsuario; // Mantenemos el creador original
+                    }
+
+                    // 3. VALIDACIÓN DE DISPONIBILIDAD (Tu lógica actual)
                     var totalHabitaciones = await _context.Habitacion
                         .CountAsync(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion);
 
@@ -162,26 +230,20 @@ namespace SistemaReserva.Controllers
                     if (reservasOcupadas >= totalHabitaciones)
                     {
                         var tipo = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
-                        ModelState.AddModelError("", $"No se pueden cambiar las fechas: El tipo '{tipo?.Nombre}' está lleno para ese período.");
-                        
-                        // Recargar datos para la vista
+                        ModelState.AddModelError("", $"No hay cupo para el tipo '{tipo?.Nombre}' en esas fechas.");
                         CargarCombosEdit(reserva); 
                         return View(reserva);
                     }
 
-                    // 2. RECALCULAR PRECIO
+                    // 4. RECALCULAR PRECIO Y ESTADO
                     var tipoHab = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                     if (tipoHab != null) {
                         reserva.PrecioTotal = CalcularPresupuesto(reserva.FechaInicio, reserva.FechaFin, tipoHab.PrecioBase);
                     }
 
-                    // 3. AUTOMATISMO DE ESTADO 
-                    if (reserva.IdHabitacion.HasValue)
-                    {
-                        reserva.Estado = "Activa";
-                        await CambiarEstadoHabitacion(reserva.IdHabitacion, false);
-                    }
-
+                    // Si se asignó habitación, el estado pasa a ser el que definas (ej: "Pendiente" pero con pieza)
+                    // El Check-In se encargará de pasarla a "Hospedado"
+                    
                     _context.Update(reserva);
                     await _context.SaveChangesAsync();
                 }
@@ -192,6 +254,8 @@ namespace SistemaReserva.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+            
+            CargarCombosEdit(reserva); 
             return View(reserva);
         }
 
@@ -234,7 +298,7 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // POST: Reserva/Finalizar/5
+       /* // POST: Reserva/Finalizar/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Finalizar(int id)
@@ -258,6 +322,37 @@ namespace SistemaReserva.Controllers
                 reserva.Estado = "Finalizada";
 
                 _context.Update(reserva);
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(Index));
+        }*/
+
+        // MÉTODO PARA CHECK-IN
+        [HttpPost]
+        public async Task<IActionResult> CheckIn(int id)
+        {
+            var reserva = await _context.Reserva.FindAsync(id);
+            if (reserva != null && reserva.IdHabitacion.HasValue)
+            {
+                reserva.Estado = "Hospedado"; // O "Activa", según tu lógica
+                await CambiarEstadoHabitacion(reserva.IdHabitacion, false); // Ocupada
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        // MÉTODO PARA CHECK-OUT
+        [HttpPost]
+        public async Task<IActionResult> CheckOut(int id)
+        {
+            var reserva = await _context.Reserva.FindAsync(id);
+            if (reserva != null)
+            {
+                reserva.Estado = "Finalizada";
+                if (reserva.IdHabitacion.HasValue)
+                {
+                    await CambiarEstadoHabitacion(reserva.IdHabitacion, true); // Liberar
+                }
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(Index));

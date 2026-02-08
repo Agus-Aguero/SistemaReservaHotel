@@ -1,0 +1,47 @@
+@using SistemaReserva.Patters
+@model SistemaReserva.Models.Recepcionista
+
+<h2>Editar Perfil Profesional</h2>
+<hr />
+
+<form asp-action="Edit">
+    <input type="hidden" asp-for="IdPersona" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="fw-bold">Legajo:</label>
+            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) {
+                <input asp-for="Legajo" class="form-control" />
+            } else {
+                <input asp-for="Legajo" class="form-control bg-light" readonly />
+            }
+            <span asp-validation-for="Legajo" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label class="fw-bold">Correo Electrónico:</label>
+            @* El email es la clave del Login, mejor dejarlo readonly para el empleado *@
+            <input asp-for="Email" class="form-control bg-light" readonly />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="Nombre" class="fw-bold"></label>
+            <input asp-for="Nombre" class="form-control" />
+            <span asp-validation-for="Nombre" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="Apellido" class="fw-bold"></label>
+            <input asp-for="Apellido" class="form-control" />
+            <span asp-validation-for="Apellido" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="form-group mt-4">
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Volver</a>
+    </div>
+</form>

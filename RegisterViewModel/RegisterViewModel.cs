@@ -18,5 +18,14 @@ namespace SistemaReserva.Models
         [DataType(DataType.Password)]
         [Display(Name = "Confirmar Contraseña")]
         public string ConfirmPassword { get; set; }
+
+        [Required(ErrorMessage = "La pregunta de seguridad es obligatoria")]
+        [Display(Name = "Pregunta de Seguridad")]
+        public string PreguntaSeguridad { get; set; }
+
+        [Required(ErrorMessage = "La respuesta de seguridad es obligatoria")]
+        [Display(Name = "Respuesta de Seguridad")]
+        public string RespuestaSeguridad { get; set; }
+
     }
 }

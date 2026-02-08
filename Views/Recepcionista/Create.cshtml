@@ -1,0 +1,73 @@
+@model SistemaReserva.Models.Recepcionista
+
+@{
+    ViewData["Title"] = "Nuevo Recepcionista";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h3 class="mb-0">Registrar Nuevo Recepcionista</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="All" class="text-danger"></div>
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Legajo</label>
+                                <input asp-for="Legajo" class="form-control" placeholder="Ej: REC-2024-001" />
+                                <span asp-validation-for="Legajo" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Correo Electrónico (Login)</label>
+                                <input asp-for="Email" type="email" class="form-control" placeholder="empleado@argentower.com" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Nombre" class="fw-bold"></label>
+                                <input asp-for="Nombre" class="form-control" />
+                                <span asp-validation-for="Nombre" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Apellido" class="fw-bold"></label>
+                                <input asp-for="Apellido" class="form-control" />
+                                <span asp-validation-for="Apellido" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Contraseña Inicial</label>
+                                <input name="password" type="password" class="form-control" required />
+                                <small class="text-muted">El empleado podrá cambiarla luego.</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold">Fecha de Ingreso</label>
+                                <input asp-for="FechaIngreso" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                <span asp-validation-for="FechaIngreso" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 border-top pt-3">
+                            <button type="submit" class="btn btn-success px-5">
+                                <i class="fas fa-save"></i> Crear Cuenta de Staff
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

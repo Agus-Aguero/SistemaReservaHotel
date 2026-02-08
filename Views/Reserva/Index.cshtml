@@ -32,7 +32,7 @@ else
                 <th>Estado</th>
                 <th>Entrada</th>
                 <th>Salida</th>
-                <th>Total</th>
+                <th class="text-center">Total</th>
                 <th>Noches</th>
                 <th class="text-center">Acciones</th>
             </tr>
@@ -66,62 +66,47 @@ else
                     </td>
 
                     @* --- CELDA NUEVA PARA EL ESTADO --- *@
-                    <td>
-                        @switch (item.Estado)
+                    <td class="text-center">
+                    <div class="btn-group">
+                        @* GESTIÓN PARA STAFF *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                         {
-                            case "Pendiente":
-                                <span class="badge bg-secondary">Pendiente</span>
-                                break;
-                            case "Activa":
-                                <span class="badge bg-primary">Activa</span>
-                                break;
-                            case "Finalizada":
-                                <span class="badge bg-success">Finalizada</span>
-                                break;
-                            case "Cancelada":
-                                <span class="badge bg-danger">Cancelada</span>
-                                break;
-                            default:
-                                <span class="badge bg-light text-dark">@item.Estado</span>
-                                break;
+                            @if (item.IdHabitacion == null && item.Estado == "Pendiente")
+                            {
+                                <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-bed"></i> Asignar
+                                </a>
+                            }
+                            
+                            @if (item.IdHabitacion != null && item.Estado == "Pendiente")
+                            {
+                                <form asp-action="CheckIn" asp-route-id="@item.IdReserva" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success">Check-In</button>
+                                </form>
+                            }
+
+                            @if (item.Estado == "Hospedado" || item.Estado == "Activa")
+                            {
+                                <form asp-action="CheckOut" asp-route-id="@item.IdReserva" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-info text-white">Check-Out</button>
+                                </form>
+                            }
                         }
-                    </td>
+
+                        @* CANCELAR (Visible para Huésped o Staff si está Pendiente) *@
+                       @* @if (item.Estado == "Pendiente")
+                        {
+                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Seguro?')">
+                                    Cancelar
+                                </button>
+                            </form>
+                        }*@
+                    </div>
+                </td>
                     
                     <td>@item.FechaInicio.ToShortDateString()</td>
                     <td>@item.FechaFin.ToShortDateString()</td>
-                    
-                    <td class="text-center">
-                        @if (item.Estado == "Pendiente" && SesionUsuario.Instancia.TienePermiso("Cancelar Reserva"))
-                        {
-                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar esta reserva?')">
-                                    <i class="fas fa-times"></i> Cancelar
-                                </button>
-                            </form>
-                        }
-
-                        @* --- BOTÓN DE CHECK-OUT (Solo si está activa) --- *@
-                        @if (item.Estado == "Activa")
-                        {
-                            <form asp-action="Finalizar" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-info text-white" onclick="return confirm('¿Confirmar Check-out?')">
-                                    Check-out
-                                </button>
-                            </form>
-                        }
-
-                        @* --- ACCIONES DE GESTIÓN (Admin/Recepción) --- *@
-                        @if (SesionUsuario.Instancia.TienePermiso("Modificar Reserva"))
-                        {
-                            <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-warning">Editar</a>
-                        }
-                        
-                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-                        {
-                            <a asp-action="Delete" asp-route-id="@item.IdReserva" class="btn btn-sm btn-danger">Eliminar</a>
-                        }
-                    </td>
 
                    <td>
                         <div class="text-end">
@@ -163,6 +148,39 @@ else
                         <span class="badge bg-light text-dark border">
                             @noches @(noches == 1 ? "noche" : "noches")
                         </span>
+                    </td>
+
+                    <td class="text-center">
+                        @if (item.Estado == "Pendiente" && SesionUsuario.Instancia.TienePermiso("Cancelar Reserva"))
+                        {
+                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar esta reserva?')">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </button>
+                            </form>
+                        }
+
+                        @* --- BOTÓN DE CHECK-OUT (Solo si está activa) --- *@
+                        @if (item.Estado == "Activa")
+                        {
+                            <form asp-action="Finalizar" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-info text-white" onclick="return confirm('¿Confirmar Check-out?')">
+                                    Check-out
+                                </button>
+                            </form>
+                        }
+
+                        @* --- ACCIONES DE GESTIÓN (Admin/Recepción) --- *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Modificar Reserva"))
+                        {
+                            <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-warning">Editar</a>
+                        }
+                        
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                        {
+                            <a asp-action="Delete" asp-route-id="@item.IdReserva" class="btn btn-sm btn-danger">Eliminar</a>
+                        }
                     </td>
                 </tr>
             }

@@ -8,6 +8,8 @@ namespace SistemaReserva.Models
         public SistemaReservaContext(DbContextOptions<SistemaReservaContext> opciones) : base(opciones) { }
 
         public DbSet<Persona> Persona { get; set; }
+        public DbSet<Huesped> Huesped { get; set; }
+        public DbSet<Recepcionista> Recepcionista { get; set; }
         public DbSet<TipoHabitacion> TipoHabitacion { get; set; }
         public DbSet<Habitacion> Habitacion { get; set; }
         public DbSet<Reserva> Reserva { get; set; }
@@ -21,7 +23,12 @@ namespace SistemaReserva.Models
             base.OnModelCreating(modelBuilder);
 
             // 1. Configuración de tablas existentes
-            modelBuilder.Entity<Persona>().ToTable("Persona");
+            modelBuilder.Entity<Persona>()
+                .HasDiscriminator<string>("TipoPersona")
+                .HasValue<Huesped>("Huesped")
+                .HasValue<Recepcionista>("Recepcionista")
+                .HasValue<Persona>("Base");
+            
             modelBuilder.Entity<TipoHabitacion>().Property(t => t.PrecioBase).HasColumnType("decimal(8,2)");
             modelBuilder.Entity<Habitacion>().ToTable("Habitacion");
             modelBuilder.Entity<Reserva>().ToTable("Reserva");
@@ -50,7 +57,6 @@ namespace SistemaReserva.Models
                 .HasValue<Familia>("Familia");
 
             // 4. Otras configuraciones
-            modelBuilder.Entity<Empleado>().HasIndex(e => e.Legajo).IsUnique();
 
             var dateOnlyConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateOnly, DateTime>(
                 dateOnly => dateOnly.ToDateTime(TimeOnly.MinValue),

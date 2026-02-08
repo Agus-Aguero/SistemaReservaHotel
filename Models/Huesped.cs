@@ -12,7 +12,6 @@ namespace SistemaReserva.Models
         {
             Reservas = new List<Reserva>();
         }
-
         public string? Provincia { get; set; }
         public string? Pais { get; set; }
         public virtual ICollection<Reserva> Reservas { get; set; }

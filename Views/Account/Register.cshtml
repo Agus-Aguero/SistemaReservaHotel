@@ -35,6 +35,24 @@
                             <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                         </div>
 
+                        <div class="form-group mb-3">
+                        <label asp-for="PreguntaSeguridad" class="control-label fw-bold"></label>
+                        <select asp-for="PreguntaSeguridad" class="form-control">
+                            <option value="">-- Seleccione una pregunta --</option>
+                            <option value="¿Nombre de tu primera mascota?">¿Nombre de tu primera mascota?</option>
+                            <option value="¿Ciudad donde naciste?">¿Ciudad donde naciste?</option>
+                            <option value="¿Nombre de tu escuela primaria?">¿Nombre de tu escuela primaria?</option>
+                            <option value="¿Marca de tu primer auto?">¿Marca de tu primer auto?</option>
+                        </select>
+                        <span asp-validation-for="PreguntaSeguridad" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="RespuestaSeguridad" class="control-label fw-bold"></label>
+                        <input asp-for="RespuestaSeguridad" class="form-control" placeholder="Tu respuesta secreta" />
+                        <span asp-validation-for="RespuestaSeguridad" class="text-danger"></span>
+                    </div>
+
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">
                                 <i class="bi bi-person-plus-fill"></i> Registrarse

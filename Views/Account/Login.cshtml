@@ -30,11 +30,14 @@
                     <div class="d-grid gap-2">
                         @* Botón principal para enviar el formulario *@
                         <button type="submit" class="btn btn-primary">Ingresar</button>
-                        
-                        <hr /> @* La línea divisoria queda perfecta aquí *@
 
+                        <div class="text-center mt-3">
+                            <a asp-action="ForgotPassword" class="text-decoration-none text-muted small">
+                                <i class="fas fa-question-circle"></i> ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
+                        <hr />
                         <p class="text-center mb-0">¿No tiene cuenta?</p>
-                        @* Este es un link, no un botón de submit, por eso no da error *@
                         <a asp-action="Register" class="btn btn-outline-secondary">Crear una cuenta nueva</a>
                     </div>
                 </form>

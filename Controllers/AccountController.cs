@@ -42,6 +42,12 @@ namespace SistemaReserva.Controllers
                 }
 
                 SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, usuario.Perfil);
+                var tienePerfil = await _context.Persona.AnyAsync(p => p.Email == usuario.Email);
+    
+                if (!tienePerfil && !SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                {
+                    return RedirectToAction("CompleteData"); // Lo mandamos directo a completar
+                }
                 return RedirectToAction("Index", "Home");
             }
 
@@ -89,7 +95,9 @@ namespace SistemaReserva.Controllers
                 {
                     Email = model.Email,
                     Password = Encriptador.GenerarHash(model.Password), // Encriptamos la clave
-                    Perfil = perfilHuesped // Asignamos el objeto Familia "Huesped"
+                    Perfil = perfilHuesped, // Asignamos el objeto Familia "Huesped"
+                    PreguntaSeguridad = model.PreguntaSeguridad,
+                    RespuestaSeguridad = model.RespuestaSeguridad
                 };
 
                 // 4. Guardamos en la base de datos
@@ -142,6 +150,142 @@ namespace SistemaReserva.Controllers
             
             return RedirectToAction("Index", "Home");
         }
+
+
+        [HttpGet]
+        public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            var usuario = await _context.Usuario.FirstOrDefaultAsync(u => u.Email == model.Email);
+
+            if (usuario == null)
+            {
+                ModelState.AddModelError("Email", "El email no está registrado en ArgenTower.");
+                return View(model);
+            }
+
+            // PASO 1: Validamos Email y recuperamos la pregunta
+            if (model.Paso == 1)
+            {
+                model.Pregunta = usuario.PreguntaSeguridad;
+                model.Paso = 2;
+                ModelState.Clear(); // Limpiamos validaciones del email para el siguiente paso
+                return View(model);
+            }
+
+            // PASO 2: Validamos la respuesta
+            if (model.Paso == 2)
+            {
+                if (usuario.RespuestaSeguridad.ToLower() == model.Respuesta?.ToLower())
+                {
+                    model.Paso = 3;
+                    model.Pregunta = usuario.PreguntaSeguridad; // La mantenemos para la vista
+                    return View(model);
+                }
+                ModelState.AddModelError("Respuesta", "La respuesta es incorrecta.");
+                model.Pregunta = usuario.PreguntaSeguridad; // No perder la pregunta al recargar
+                return View(model);
+            }
+
+            // PASO 3: Cambio de contraseña final
+            if (model.Paso == 3)
+            {
+                if (string.IsNullOrEmpty(model.NuevaPassword))
+                {
+                    ModelState.AddModelError("NuevaPassword", "Debes ingresar una nueva contraseña.");
+                    model.Pregunta = usuario.PreguntaSeguridad;
+                    return View(model);
+                }
+
+                usuario.Password = Encriptador.GenerarHash(model.NuevaPassword);
+                _context.Update(usuario);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Contraseña restablecida con éxito. Ya puedes iniciar sesión.";
+                return RedirectToAction("Login");
+            }
+
+            return View(model);
+        }
+
+        // GET: Account/CompleteData
+        [HttpGet]
+        public async Task<IActionResult> CompleteData()
+        {
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            
+            // Verificamos si ya existe para no pedir datos de más
+            var existe = await _context.Persona.AnyAsync(p => p.Email == emailLogueado);
+            if (existe)
+            {
+                return RedirectToAction("Create", "Reserva");
+            }
+
+            // Si no existe, le mostramos el formulario vacío (o con el email ya cargado)
+            var nuevoHuesped = new Huesped { Email = emailLogueado };
+            return View(nuevoHuesped);
+        }
+
+        // POST: Account/CompleteData
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteData(Huesped huesped)
+        {
+            var emailLogueado = SesionUsuario.Instancia.Email;
+
+            var existe = await _context.Persona.AnyAsync(p => p.Email == emailLogueado);
+            if (existe) return RedirectToAction("Index", "Home"); // Cambiado a Home
+
+            // Limpiamos errores de validación de objetos relacionados que no cargamos en el form
+            ModelState.Remove("Reservas"); 
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    huesped.Email = emailLogueado;
+                    
+                    _context.Huesped.Add(huesped); 
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "¡Perfil completado con éxito!";
+                    return RedirectToAction("Index", "Home"); // Volvemos al inicio
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("", "Error al guardar: " + ex.Message);
+                }
+            }
+            return View(huesped);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> MiPerfil()
+        {
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            
+            // Buscamos en la tabla base Persona para ver si existe el email
+            var persona = await _context.Persona
+                .FirstOrDefaultAsync(p => p.Email == emailLogueado);
+
+            if (persona == null)
+            {
+                return RedirectToAction("CompleteData");
+            }
+
+            // Si es Recepcionista, lo mandamos al Edit de RecepcionistaController
+            if (SesionUsuario.Instancia.TienePermiso("Recepcionista")) // O el permiso que definas
+            {
+                return RedirectToAction("Edit", "Recepcionista", new { id = persona.IdPersona });
+            }
+
+            // Si existe pero es un Huesped, vamos a sus detalles
+            return RedirectToAction("Details", "Huesped", new { id = persona.IdPersona });
+        }
+
 
         // Método auxiliar para romper la limitación de EF Core
         private async Task CargarHijosRecursivo(Componente componente)
