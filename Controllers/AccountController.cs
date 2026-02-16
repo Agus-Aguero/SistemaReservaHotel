@@ -29,12 +29,26 @@ namespace SistemaReserva.Controllers
         {
             string hashIngresado = Encriptador.GenerarHash(password);
 
+            // 1. Buscamos el usuario por credenciales
             var usuario = await _context.Usuario
                 .Include(u => u.Perfil) 
                 .FirstOrDefaultAsync(u => u.Email == email && u.Password == hashIngresado);
 
             if (usuario != null)
             {
+                // --- NUEVA VALIDACIÓN DE ESTADO ---
+                // Buscamos si existe un registro en Recepcionista para este email
+                var staff = await _context.Recepcionista
+                    .FirstOrDefaultAsync(r => r.Email == usuario.Email);
+
+                // Si es staff y está inactivo, bloqueamos el acceso inmediatamente
+                if (staff != null && !staff.Activo)
+                {
+                    ViewBag.Error = "Tu cuenta de acceso ha sido desactivada. Contacta al administrador.";
+                    return View();
+                }
+                // ----------------------------------
+
                 // LLAMADA CLAVE: Cargamos recursivamente toda la estructura del Composite
                 if (usuario.Perfil != null)
                 {
@@ -42,12 +56,14 @@ namespace SistemaReserva.Controllers
                 }
 
                 SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, usuario.Perfil);
+                
                 var tienePerfil = await _context.Persona.AnyAsync(p => p.Email == usuario.Email);
-    
+
                 if (!tienePerfil && !SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                 {
-                    return RedirectToAction("CompleteData"); // Lo mandamos directo a completar
+                    return RedirectToAction("CompleteData");
                 }
+                
                 return RedirectToAction("Index", "Home");
             }
 
@@ -114,10 +130,23 @@ namespace SistemaReserva.Controllers
 
 
         // GET: Account/ChangePassword
-        public IActionResult ChangePassword()
+        [HttpGet]
+        public async Task<IActionResult> ChangePassword()
         {
-            if (SesionUsuario.Instancia.Email == null) return RedirectToAction("Login");
-            return View();
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            if (emailLogueado == null) return RedirectToAction("Login");
+
+            var usuario = await _context.Usuario.FirstOrDefaultAsync(u => u.Email == emailLogueado);
+            if (usuario == null) return NotFound();
+
+            // Cargamos el modelo con los datos actuales de la DB
+            var model = new ChangePasswordViewModel
+            {
+                PreguntaSeguridad = usuario.PreguntaSeguridad,
+                RespuestaSeguridad = usuario.RespuestaSeguridad
+            };
+
+            return View(model);
         }
 
         [HttpPost]
@@ -131,23 +160,23 @@ namespace SistemaReserva.Controllers
 
             if (usuario == null) return NotFound();
 
-            // 1. Verificar que la contraseña actual sea correcta
-            // Asumimos que tu Encriptador tiene un método para comparar o generar el hash
+            // Validamos contraseña actual con el Hash
             var hashActual = Encriptador.GenerarHash(model.CurrentPassword);
-            
             if (usuario.Password != hashActual)
             {
                 ModelState.AddModelError("CurrentPassword", "La contraseña actual no es correcta.");
                 return View(model);
             }
 
-            // 2. Actualizar con la nueva contraseña
+            // Actualización de todo el combo de seguridad
             usuario.Password = Encriptador.GenerarHash(model.NewPassword);
+            usuario.PreguntaSeguridad = model.PreguntaSeguridad;
+            usuario.RespuestaSeguridad = model.RespuestaSeguridad;
+
             _context.Update(usuario);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Contraseña cambiada con éxito.";
-            
+            TempData["Success"] = "Seguridad actualizada correctamente.";
             return RedirectToAction("Index", "Home");
         }
 
@@ -182,11 +211,12 @@ namespace SistemaReserva.Controllers
                 if (usuario.RespuestaSeguridad.ToLower() == model.Respuesta?.ToLower())
                 {
                     model.Paso = 3;
-                    model.Pregunta = usuario.PreguntaSeguridad; // La mantenemos para la vista
+                    model.Pregunta = usuario.PreguntaSeguridad;
+                    ModelState.Clear();
                     return View(model);
                 }
                 ModelState.AddModelError("Respuesta", "La respuesta es incorrecta.");
-                model.Pregunta = usuario.PreguntaSeguridad; // No perder la pregunta al recargar
+                model.Pregunta = usuario.PreguntaSeguridad;
                 return View(model);
             }
 
@@ -277,7 +307,7 @@ namespace SistemaReserva.Controllers
             }
 
             // Si es Recepcionista, lo mandamos al Edit de RecepcionistaController
-            if (SesionUsuario.Instancia.TienePermiso("Recepcionista")) // O el permiso que definas
+            if (SesionUsuario.Instancia.TienePermiso("Recepcion")) // O el permiso que definas
             {
                 return RedirectToAction("Edit", "Recepcionista", new { id = persona.IdPersona });
             }

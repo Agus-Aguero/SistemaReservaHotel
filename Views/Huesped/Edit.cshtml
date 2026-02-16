@@ -2,10 +2,6 @@
 @model SistemaReserva.Models.Huesped
 
 @{
-    ViewData["Title"] = "Editar Huesped";
-}
-
-@{
     bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
     ViewData["Title"] = esAdmin ? "Editar Huésped" : "Mi Perfil";
 }
@@ -13,7 +9,7 @@
 <div class="container mt-4">
     <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">@ViewData["Title"]</h4>
+            <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>@ViewData["Title"]</h4>
         </div>
         <div class="card-body">
             <form asp-action="Edit">
@@ -35,6 +31,23 @@
                             <label asp-for="Apellido" class="control-label fw-bold"></label>
                             <input asp-for="Apellido" class="form-control" />
                             <span asp-validation-for="Apellido" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group mb-3">
+                                <label asp-for="FechaNacimiento" class="control-label fw-bold"></label>
+                                <input asp-for="FechaNacimiento" type="date" class="form-control" />
+                                <span asp-validation-for="FechaNacimiento" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 form-group mb-3">
+                                <label asp-for="Genero" class="control-label fw-bold"></label>
+                                <select asp-for="Genero" class="form-select">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Femenino">Femenino</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="form-group mb-3">
@@ -59,15 +72,22 @@
                         </div>
 
                         <div class="form-group mb-3">
-                            <label asp-for="Pais" class="control-label fw-bold"></label>
-                            <input asp-for="Pais" class="form-control" />
-                            <span asp-validation-for="Pais" class="text-danger"></span>
+                            <label asp-for="Nacionalidad" class="control-label fw-bold"></label>
+                            <input asp-for="Nacionalidad" class="form-control" />
+                            <span asp-validation-for="Nacionalidad" class="text-danger"></span>
                         </div>
 
-                        <div class="form-group mb-3">
-                            <label asp-for="Provincia" class="control-label fw-bold"></label>
-                            <input asp-for="Provincia" class="form-control" />
-                            <span asp-validation-for="Provincia" class="text-danger"></span>
+                        <div class="row">
+                            <div class="col-md-6 form-group mb-3">
+                                <label asp-for="Pais" class="control-label fw-bold"></label>
+                                <input asp-for="Pais" class="form-control" />
+                                <span asp-validation-for="Pais" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 form-group mb-3">
+                                <label asp-for="Provincia" class="control-label fw-bold"></label>
+                                <input asp-for="Provincia" class="form-control" />
+                                <span asp-validation-for="Provincia" class="text-danger"></span>
+                            </div>
                         </div>
 
                         <div class="form-group mb-3">
@@ -89,8 +109,8 @@
                     {
                         <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary me-2">Cancelar</a>
                     }
-                    <button type="submit" class="btn btn-primary px-5">
-                        <i class="fas fa-save"></i> Guardar Cambios
+                    <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                        <i class="fas fa-save me-1"></i> Guardar Cambios
                     </button>
                 </div>
             </form>

@@ -30,32 +30,38 @@ namespace SistemaReserva.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Recepcionista model, string password)
+        public async Task<IActionResult> Create(Huesped model)
         {
-            // Limpiamos objetos que no vienen del formulario para que pase el IsValid
+            // 1. Limpiamos validaciones de navegación si existen
             ModelState.Remove("Usuario");
             ModelState.Remove("Perfil");
 
             if (ModelState.IsValid)
             {
-                // 1. Buscamos el perfil para asignarle los permisos de Recepcionista
-                var perfilRecepcionista = await _context.Componente
-                    .FirstOrDefaultAsync(c => c.Nombre == "Recepcionista");
+                var perfilHuesped = await _context.Componente
+                    .FirstOrDefaultAsync(c => c.Nombre == "Huesped");
 
-                // 2. Creamos el Usuario
+                if (perfilHuesped == null)
+                {
+                    ModelState.AddModelError("", "Error: El perfil 'Huesped' no existe en la base de datos.");
+                    return View(model);
+                }
+
                 var nuevoUsuario = new Usuario
                 {
                     Email = model.Email,
-                    Password = Encriptador.GenerarHash(password),
-                    Perfil = perfilRecepcionista,
+                    Password = Encriptador.GenerarHash("1234"),
+                    Perfil = perfilHuesped,
+                    PerfilId = perfilHuesped.IdComponente,
                     PreguntaSeguridad = "Configurada por Admin",
                     RespuestaSeguridad = "1234"
                 };
-
                 _context.Usuario.Add(nuevoUsuario);
-                _context.Recepcionista.Add(model);
+                _context.Huesped.Add(model);
                 
                 await _context.SaveChangesAsync();
+                
+                TempData["Success"] = "Huésped registrado. Puede ingresar con su email y clave 1234.";
                 return RedirectToAction(nameof(Index));
             }
             return View(model);
@@ -105,6 +111,18 @@ namespace SistemaReserva.Controllers
                 catch (DbUpdateConcurrencyException) { /* ... */ }
             }
             return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleEstado(int id)
+        {
+            var staff = await _context.Recepcionista.FindAsync(id);
+            if (staff != null)
+            {
+                staff.Activo = !staff.Activo; // Cambia de true a false o viceversa
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(Index));
         }
 
     }

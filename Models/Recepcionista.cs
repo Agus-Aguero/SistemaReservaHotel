@@ -8,10 +8,9 @@ namespace SistemaReserva.Models
         public string Legajo { get; set; } = string.Empty;
 
         [Required]
-        public string Direccion { get; set; } = string.Empty;
-
-        [Required]
         public DateTime FechaIngreso { get; set; } = DateTime.UtcNow; 
+
+        public bool Activo { get; set; } = true;
     }
 
 }

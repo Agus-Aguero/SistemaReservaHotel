@@ -2,89 +2,102 @@
 @model SistemaReserva.Models.Huesped
 
 @{
-    ViewData["Title"] = "Crear Huesped";
-}
-
-@{
     bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
-    ViewData["Title"] = esAdmin ? "Nuevo Huésped" : "Completar mi Perfil";
+    ViewData["Title"] = esAdmin ? "Registrar Nuevo Huésped" : "Completar mi Perfil";
 }
 
 <div class="container mt-4">
-    <h2>@ViewData["Title"]</h2>
-    <hr />
+    <div class="card shadow border-0">
+        <div class="card-header bg-dark text-white py-3">
+            <h4 class="mb-0">
+                <i class="fas @(esAdmin ? "fa-user-plus" : "fa-user-circle") me-2"></i>@ViewData["Title"]
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="Create">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-    <form asp-action="Create">
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-        <div class="row">
-            @* --- COLUMNA IZQUIERDA --- *@
-            <div class="col-md-6">
-                <div class="form-group mb-3">
-                    <label asp-for="Nombre" class="control-label font-weight-bold"></label>
-                    <input asp-for="Nombre" class="form-control" placeholder="Ingrese nombre" />
-                    <span asp-validation-for="Nombre" class="text-danger"></span>
+                <h5 class="text-primary border-bottom pb-2 mb-3">Datos de Identidad y Acceso</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Nombre" class="form-label fw-bold"></label>
+                        <input asp-for="Nombre" class="form-control" placeholder="Nombre completo" />
+                        <span asp-validation-for="Nombre" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Apellido" class="form-label fw-bold"></label>
+                        <input asp-for="Apellido" class="form-control" placeholder="Apellido completo" />
+                        <span asp-validation-for="Apellido" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Email" class="form-label fw-bold">Correo Electrónico (Usuario)</label>
+                        @if (esAdmin)
+                        {
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input asp-for="Email" class="form-control" placeholder="huesped@correo.com" />
+                            </div>
+                            <small class="text-info">Se creará acceso automático con clave: <strong>1234</strong></small>
+                        }
+                        else
+                        {
+                            <input asp-for="Email" class="form-control bg-light" readonly />
+                            <small class="text-muted">Este correo es tu identificador de acceso.</small>
+                        }
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
                 </div>
 
-                <div class="form-group mb-3">
-                    <label asp-for="Apellido" class="control-label font-weight-bold"></label>
-                    <input asp-for="Apellido" class="form-control" placeholder="Ingrese apellido" />
-                    <span asp-validation-for="Apellido" class="text-danger"></span>
+                <h5 class="text-primary border-bottom pb-2 mt-4 mb-3">Información de Contacto y Origen</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="FechaNacimiento" class="form-label fw-bold">Fecha de Nacimiento</label>
+                        <input asp-for="FechaNacimiento" type="date" class="form-control" />
+                        <span asp-validation-for="FechaNacimiento" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Telefono" class="form-label fw-bold"></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                            <input asp-for="Telefono" class="form-control" placeholder="+54..." />
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Nacionalidad" class="form-label fw-bold"></label>
+                        <input asp-for="Nacionalidad" class="form-control" placeholder="Ej: Argentina" />
+                    </div>
                 </div>
 
-                <div class="form-group mb-3">
-                    <label asp-for="Email" class="control-label font-weight-bold"></label>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Pais" class="form-label fw-bold"></label>
+                        <input asp-for="Pais" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Ciudad" class="form-label fw-bold"></label>
+                        <input asp-for="Ciudad" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                        <i class="fas fa-save me-2"></i>@(esAdmin ? "Crear Huésped" : "Guardar Perfil")
+                    </button>
+                    
                     @if (esAdmin)
                     {
-                        <input asp-for="Email" class="form-control" />
+                        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Volver al Listado</a>
                     }
                     else
                     {
-                        <input asp-for="Email" class="form-control bg-light" readonly />
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary ms-2">Cancelar</a>
                     }
-                    <span asp-validation-for="Email" class="text-danger"></span>
                 </div>
-            </div>
-
-            @* --- COLUMNA DERECHA --- *@
-            <div class="col-md-6">
-                <div class="form-group mb-3">
-                    <label asp-for="Telefono" class="control-label font-weight-bold"></label>
-                    <input asp-for="Telefono" class="form-control" />
-                    <span asp-validation-for="Telefono" class="text-danger"></span>
-                </div>
-
-                <div class="form-group mb-3">
-                    <label asp-for="FechaNacimiento" class="control-label font-weight-bold"></label>
-                    <input asp-for="FechaNacimiento" type="date" class="form-control" />
-                    <span asp-validation-for="FechaNacimiento" class="text-danger"></span>
-                </div>
-
-                <div class="form-group mb-3">
-                    <label asp-for="Pais" class="control-label font-weight-bold"></label>
-                    <input asp-for="Pais" class="form-control" />
-                    <span asp-validation-for="Pais" class="text-danger"></span>
-                </div>
-
-                <div class="form-group mb-3">
-                    <label asp-for="Ciudad" class="control-label font-weight-bold"></label>
-                    <input asp-for="Ciudad" class="form-control" />
-                    <span asp-validation-for="Ciudad" class="text-danger"></span>
-                </div>
-            </div>
+            </form>
         </div>
-
-        <div class="form-group mt-4">
-            <input type="submit" value="@(esAdmin ? "Crear Huésped" : "Guardar Perfil")" class="btn btn-primary px-4" />
-            
-            @if (esAdmin)
-            {
-                <a asp-action="Index" class="btn btn-secondary ms-2">Volver al Listado</a>
-            }
-            else
-            {
-                <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary ms-2">Cancelar</a>
-            }
-        </div>
-    </form>
+    </div>
 </div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

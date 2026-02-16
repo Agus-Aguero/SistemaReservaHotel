@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -25,71 +26,110 @@ namespace SistemaReserva.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            // 2. PREPARAMOS LA CONSULTA (IQueryable permite agregar filtros antes de ir a la DB)
+            // 2. PREPARAMOS LA CONSULTA
             var query = _context.Reserva
                 .Include(r => r.Huesped)
                 .Include(r => r.TipoHabitacion)
                 .Include(r => r.Habitacion)
                 .AsQueryable();
 
-            // 3. FILTRO DE PRIVACIDAD:
-            // Si no tiene permiso de gestión (es un Huésped), solo traemos sus reservas.
-            // Si es Admin/Recepcionista, la consulta queda igual y ve todo.
-            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+            // 3. FILTRO DE PRIVACIDAD ACTUALIZADO:
+            // Agregamos la validación para el perfil "Recepcion"
+            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                        SesionUsuario.Instancia.TienePermiso("Recepcion");
+
+            if (!esStaff)
             {
+                // Si es un Huésped (no es staff), solo traemos sus reservas.
                 var emailLogueado = SesionUsuario.Instancia.Email;
                 query = query.Where(r => r.Huesped.Email == emailLogueado);
+            }
+            else 
+            {
+                // Si es Staff, ordenamos para que lo más reciente aparezca primero
+                query = query.OrderByDescending(r => r.FechaInicio);
             }
 
             // 4. EJECUTAMOS LA CONSULTA FILTRADA
             var reservas = await query.ToListAsync();
 
-            // 5. LÓGICA DE MONEDA
+            // 5. LÓGICA DE MONEDA (Se mantiene igual)
             ViewBag.Moneda = moneda;
+
+            // 5.1. Componente Concreto Base (Pesos)
+            IPrecioDisplay display = new PrecioPesosDisplay();
+
             if (moneda == "USD") 
             {
                 var service = new DolarService();
-                ViewBag.Cotizacion = await service.ObtenerCotizaciónBlue();
+                decimal cotizacion = await service.ObtenerCotizaciónBlue();
+                ViewBag.Cotizacion = cotizacion;
+
+                // 5.2. Envolvemos el objeto base con el Decorador de Dólares
+                display = new PrecioDolarDecorator(display, cotizacion);
             }
+
+            // 5.3. Pasamos el decorador (ya sea simple o decorado) a la vista
+            ViewBag.Display = display;
 
             return View(reservas);
         }
 
         // GET: Reserva/Create
-
-       public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create()
         {
+            // 1. OBTENCIÓN DE DATOS DEL USUARIO Y PERMISOS
             var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
-            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            
+            // Aquí ya incluiste correctamente al Recepcionista
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                        SesionUsuario.Instancia.TienePermiso("Recepcion");
 
-            // 1. Verificamos si el usuario actual tiene su perfil completo (solo relevante para Huéspedes)
             var personaLogueada = await _context.Persona
                 .FirstOrDefaultAsync(p => p.Email.ToLower() == emailLogueado);
 
-            // El Admin siempre puede entrar; el Huésped necesita tener perfil
             ViewBag.TienePerfil = esAdmin || (personaLogueada != null);
 
-            // 2. Definimos la consulta de Huéspedes
-            // Usamos _context.Huesped para traer solo a los clientes registrados
+            // 2. DEFINICIÓN DE CONSULTA DE HUÉSPEDES
             IQueryable<Huesped> consulta = _context.Huesped;
 
+            // CAMBIO CLAVE: Si es Admin o Recepcionista, entra al ELSE y ve a todos.
             if (!esAdmin)
             {
-                // El Huésped común solo se ve a sí mismo para autocompletar
+                // Solo el Huésped común entra aquí y se filtra a sí mismo
                 consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
             }
             else 
             {
-                // El Admin ve a todos los Huéspedes ordenados por apellido para facilitar la búsqueda
+                // Admin y Recepcionista ven todo el listado
                 consulta = consulta.OrderBy(h => h.Apellido).ThenBy(h => h.Nombre);
             }
 
             var listaHuespedes = await consulta.ToListAsync();
 
-            // 3. Cargamos los ViewData para los Selects
-            // Para el Admin, el texto mostrado será "Apellido, Nombre"
-            ViewData["IdPersona"] = new SelectList(listaHuespedes, "IdPersona", "Apellido");
-            ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre");
+            // 3. CARGA DE DATOS PARA EL PRESUPUESTO DINÁMICO
+            var tiposHabitacion = await _context.TipoHabitacion.ToListAsync();
+
+            var preciosHabitaciones = tiposHabitacion.Select(t => new { 
+                t.IdTipoHabitacion, 
+                t.PrecioBase 
+            }).ToList();
+
+            ViewBag.PreciosJson = JsonSerializer.Serialize(preciosHabitaciones);
+
+            var service = new DolarService();
+            ViewBag.Cotizacion = await service.ObtenerCotizaciónBlue();
+
+            // 4. DATOS PARA LOS SELECTS DE LA VISTA
+            ViewData["IdPersona"] = new SelectList(listaHuespedes.Select(h => new {
+                h.IdPersona,
+                NombreCompleto = $"{h.Apellido}, {h.Nombre}"
+            }), "IdPersona", "NombreCompleto");
+
+            ViewBag.TiposConCamas = tiposHabitacion.Select(t => new {
+                t.IdTipoHabitacion,
+                DetalleFull = $"{t.Nombre} ({(t.DescripcionCamas ?? "Sin descripción")})"
+            }).ToList();
 
             return View();
         }
@@ -98,38 +138,63 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Reserva reserva)
         {
-            // 1. PRE-VALIDACIÓN: Asignamos el ID de usuario del Singleton antes de validar el modelo
+            // 1. Asignamos el usuario desde la sesión
             reserva.IdUsuario = SesionUsuario.Instancia.IdUsuario;
 
-            // 2. LIMPIEZA: Quitamos las propiedades de navegación de la validación
-            // Esto evita errores si EF intenta validar objetos que no vienen del formulario
+            // 2. Limpieza para validación manual
             ModelState.Remove("Usuario");
             ModelState.Remove("Huesped");
             ModelState.Remove("TipoHabitacion");
 
             if (ModelState.IsValid)
             {
-                // --- Lógica de disponibilidad (Lo que ya tenías) ---
-                var totalHabitaciones = await _context.Habitacion
-                    .CountAsync(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion);
+                // --- LÓGICA DE POOLS COMPATIBLES ---
+                // IDs: 1:Twin, 2:Doble, 3:Doble Premium, 4:Cuadr, 5:Cuadr Indiv, 6:Suite
+                List<int> idsCompatibles = new List<int> { reserva.IdTipoHabitacion };
 
-                var reservasOcupadas = await _context.Reserva
-                    .CountAsync(r => r.IdTipoHabitacion == reserva.IdTipoHabitacion &&
+                if (reserva.IdTipoHabitacion == 1 || reserva.IdTipoHabitacion == 2)
+                {
+                    idsCompatibles = new List<int> { 1, 2 }; // Pool Matrimonial/Twin
+                }
+                else if (reserva.IdTipoHabitacion == 4 || reserva.IdTipoHabitacion == 5)
+                {
+                    idsCompatibles = new List<int> { 4, 5 }; // Pool Cuádruples
+                }
+
+                // A. Buscamos todas las habitaciones físicas candidatas
+                var habitacionesCandidatas = await _context.Habitacion
+                    .Where(h => idsCompatibles.Contains(h.IdTipoHabitacion))
+                    .Select(h => h.IdHabitacion)
+                    .ToListAsync();
+
+                int totalFisico = habitacionesCandidatas.Count;
+
+                // B. Contamos ocupación física real
+                var ocupadasFisicamente = await _context.Reserva
+                    .CountAsync(r => r.IdHabitacion != null &&
+                                    habitacionesCandidatas.Contains(r.IdHabitacion.Value) &&
                                     r.Estado != "Cancelada" &&
                                     reserva.FechaInicio < r.FechaFin && 
                                     reserva.FechaFin > r.FechaInicio);
 
-                if (reservasOcupadas >= totalHabitaciones)
+                // C. Contamos reservas pendientes del pool sin habitación asignada
+                var pendientesPool = await _context.Reserva
+                    .CountAsync(r => idsCompatibles.Contains(r.IdTipoHabitacion) &&
+                                    r.IdHabitacion == null &&
+                                    r.Estado == "Pendiente" &&
+                                    reserva.FechaInicio < r.FechaFin && 
+                                    reserva.FechaFin > r.FechaInicio);
+
+                // D. Verificación de Disponibilidad
+                if ((ocupadasFisicamente + pendientesPool) >= totalFisico)
                 {
                     var tipo = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
-                    ModelState.AddModelError("", $"Lo sentimos, no hay habitaciones de tipo '{tipo?.Nombre}' disponibles.");
-                    
-                    // Recarga de combos en caso de error de disponibilidad
+                    ModelState.AddModelError("", $"No hay disponibilidad física para {tipo?.Nombre} en esas fechas.");
                     await RecargarDatosVista(reserva);
                     return View(reserva);
                 }
 
-                // --- Guardado ---
+                // --- GUARDADO ---
                 var tipoHab = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                 reserva.PrecioTotal = CalcularPresupuesto(reserva.FechaInicio, reserva.FechaFin, tipoHab.PrecioBase);
                 reserva.Estado = "Pendiente";
@@ -139,26 +204,50 @@ namespace SistemaReserva.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // 3. SI EL MODELO NO ES VÁLIDO: Recargamos todo para no perder el nombre
             await RecargarDatosVista(reserva);
             return View(reserva);
         }
 
-        // Método auxiliar para no repetir código de recarga
-        private async Task RecargarDatosVista(Reserva reserva)
+        // Método auxiliar para evitar repetir código y errores de Nulo
+        private async Task RecargarDatosVista(Reserva reserva = null)
         {
             var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
-            ViewBag.TienePerfil = true;
-            
-            // Volvemos a filtrar para que el Huésped vea su apellido y no "Usuario"
-            IQueryable<Huesped> consulta = _context.Huesped;
-            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-            {
-                consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
-            }
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
 
-            ViewData["IdPersona"] = new SelectList(await consulta.ToListAsync(), "IdPersona", "Apellido", reserva.IdPersona);
-            ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
+            // 1. Carga de Huéspedes
+            IQueryable<Huesped> consulta = _context.Huesped;
+            if (!esAdmin) {
+                consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
+            } else {
+                consulta = consulta.OrderBy(h => h.Apellido).ThenBy(h => h.Nombre);
+            }
+            var listaHuespedes = await consulta.ToListAsync();
+
+            // 2. Carga de Tipos con la descripción de camas (Lo que pide la vista)
+            var tiposDb = await _context.TipoHabitacion.ToListAsync();
+            
+            // Mapeamos a una lista anónima para el SelectList de la vista
+            ViewBag.TiposConCamas = tiposDb.Select(t => new {
+                IdTipoHabitacion = t.IdTipoHabitacion,
+                DetalleFull = $"{t.Nombre} ({(t.DescripcionCamas ?? "Sin especificar")})"
+            }).ToList();
+
+            // 3. Precios para el JavaScript (Presupuesto)
+            var preciosJson = tiposDb.Select(t => new { 
+                t.IdTipoHabitacion, 
+                t.PrecioBase 
+            }).ToList();
+            ViewBag.PreciosJson = System.Text.Json.JsonSerializer.Serialize(preciosJson);
+
+            // 4. Datos para el SelectList de Huéspedes
+            ViewData["IdPersona"] = new SelectList(listaHuespedes.Select(h => new {
+                h.IdPersona,
+                NombreCompleto = $"{h.Apellido}, {h.Nombre}"
+            }), "IdPersona", "NombreCompleto", reserva?.IdPersona);
+
+            // 5. Cotización del Dólar
+            var service = new DolarService();
+            ViewBag.Cotizacion = await service.ObtenerCotizaciónBlue();
         }
 
 
@@ -298,34 +387,6 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-       /* // POST: Reserva/Finalizar/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Finalizar(int id)
-        {
-            // Incluimos el TipoHabitacion para sacar el PrecioBase
-            var reserva = await _context.Reserva
-                .Include(r => r.TipoHabitacion)
-                .FirstOrDefaultAsync(m => m.IdReserva == id);
-
-            if (reserva != null && reserva.TipoHabitacion != null)
-            {
-                // 1. Calculamos la cantidad de noches (mínimo 1 noche)
-                int noches = (reserva.FechaFin - reserva.FechaInicio).Days;
-                if (noches <= 0) noches = 1; 
-
-                // 2. Calculamos el total
-                reserva.PrecioTotal = noches * reserva.TipoHabitacion.PrecioBase;
-
-                // 3. Liberamos la habitación y cambiamos estado
-                await CambiarEstadoHabitacion(reserva.IdHabitacion, true);
-                reserva.Estado = "Finalizada";
-
-                _context.Update(reserva);
-                await _context.SaveChangesAsync();
-            }
-            return RedirectToAction(nameof(Index));
-        }*/
 
         // MÉTODO PARA CHECK-IN
         [HttpPost]

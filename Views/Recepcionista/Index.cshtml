@@ -30,6 +30,7 @@
                         <th>Nombre Completo</th>
                         <th>Email de Acceso</th>
                         <th>Fecha Ingreso</th>
+                        <th>Estado</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -43,15 +44,37 @@
                             <td>@item.Apellido, @item.Nombre</td>
                             <td>@item.Email</td>
                             <td>@item.FechaIngreso.ToString("dd/MM/yyyy")</td>
-                            <td class="text-center">
-                                <div class="btn-group" role="group">
-                                    <a asp-action="Edit" asp-route-id="@item.IdPersona" class="btn btn-sm btn-outline-warning" title="Editar">
-                                        <i class="fas fa-edit"></i>
+                             <td>
+                                @if (item.Activo)
+                                {
+                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-center" style="min-width: 180px;">
+                                <div class="d-flex justify-content-center gap-2">
+                                    @* Botón Editar *@
+                                    <a asp-action="Edit" asp-route-id="@item.IdPersona" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit me-1"></i> Editar
                                     </a>
-                                    <a asp-action="Details" asp-route-id="@item.IdPersona" class="btn btn-sm btn-outline-info" title="Detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    @* Podríamos agregar un botón de Baja Lógica aquí *@
+                                        @* Botón Toggle Estado (Alta/Baja) *@
+                                    <form asp-action="ToggleEstado" asp-route-id="@item.IdPersona" method="post" class="d-inline">
+                                        @if (item.Activo)
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Dar de Baja">
+                                                <i class="fas fa-user-slash"></i> Baja
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Dar de Alta">
+                                                <i class="fas fa-user-check"></i> Alta
+                                            </button>
+                                        }
+                                    </form>
                                 </div>
                             </td>
                         </tr>

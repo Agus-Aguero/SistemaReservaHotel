@@ -32,6 +32,7 @@ using (var scope = app.Services.CreateScope())
         var patModificarReserva = new Patente { Nombre = "Modificar Reserva" };
         var patGestionarHabitaciones = new Patente { Nombre = "Gestionar Habitaciones" };
         var patGestionarUsuarios = new Patente { Nombre = "Gestionar Usuarios" };
+        var patGestionarHuespedes = new Patente { Nombre = "Gestionar Huespedes" };
         var patCheckIn = new Patente { Nombre = "CheckIn" };
         var patCheckOut = new Patente { Nombre = "CheckOut" };
 
@@ -52,8 +53,9 @@ using (var scope = app.Services.CreateScope())
         familiaHuesped.Agregar(patCancelarReserva); // Para anular sus reservas
 
         // Agregamos Ver Reservas a Recepción
-        familiaRecepcion.Agregar(familiaHuesped);  // Así el recepcionista también puede crear/ver/cancelar
+        familiaRecepcion.Agregar(familiaHuesped); 
         familiaRecepcion.Agregar(patModificarReserva);
+        familiaRecepcion.Agregar(patGestionarHuespedes);
         familiaRecepcion.Agregar(patCheckIn);
         familiaRecepcion.Agregar(patCheckOut);
 

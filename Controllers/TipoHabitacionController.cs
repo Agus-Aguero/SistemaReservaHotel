@@ -14,7 +14,6 @@ namespace SistemaReserva.Controllers
         }
 
         // GET: TipoHabitacion
-        // GET: TipoHabitacion
         public async Task<IActionResult> Index()
         {
             // Traemos todos los tipos de habitación de SQL Server

@@ -46,141 +46,114 @@ else
             @foreach (var item in Model)
             {
                 <tr>
+                    @* 1. Huésped *@
                     <td>@(item.Huesped?.Apellido ?? "Sin Nombre"), @(item.Huesped?.Nombre ?? "")</td>
                     
+                    @* 2. Categoría *@
                     <td>@item.TipoHabitacion?.Nombre</td>
                     
-                    <td>
+                    @* 3. Habitación *@
+                    <td class="text-center">
                         @if (item.IdHabitacion.HasValue)
                         {
-                            <span class="badge bg-success" style="padding: 6px; border-radius: 4px;">
-                                @item.Habitacion?.Numero
-                            </span>
+                            <span class="badge bg-success">@item.Habitacion?.Numero</span>
                         }
                         else
                         {
-                            <span class="badge bg-warning text-dark" style="padding: 6px; border-radius: 4px;">
-                                ⚠️ Pendiente
-                            </span>
+                            <span class="badge bg-warning text-dark">⚠️ Pendiente</span>
                         }
                     </td>
 
-                    @* --- CELDA NUEVA PARA EL ESTADO --- *@
+                    @* 4. Estado *@
                     <td class="text-center">
-                    <div class="btn-group">
-                        @* GESTIÓN PARA STAFF *@
-                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-                        {
-                            @if (item.IdHabitacion == null && item.Estado == "Pendiente")
-                            {
-                                <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-bed"></i> Asignar
-                                </a>
-                            }
-                            
-                            @if (item.IdHabitacion != null && item.Estado == "Pendiente")
-                            {
-                                <form asp-action="CheckIn" asp-route-id="@item.IdReserva" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-success">Check-In</button>
-                                </form>
-                            }
-
-                            @if (item.Estado == "Hospedado" || item.Estado == "Activa")
-                            {
-                                <form asp-action="CheckOut" asp-route-id="@item.IdReserva" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-info text-white">Check-Out</button>
-                                </form>
-                            }
+                        @{
+                            var claseEstado = item.Estado switch {
+                                "Pendiente" => "bg-secondary",
+                                "Activa" => "bg-primary",
+                                "Hospedado" => "bg-success",
+                                "Finalizada" => "bg-dark",
+                                "Cancelada" => "bg-danger",
+                                _ => "bg-info"
+                            };
                         }
+                        <span class="badge @claseEstado">@item.Estado</span>
+                    </td>
 
-                        @* CANCELAR (Visible para Huésped o Staff si está Pendiente) *@
-                       @* @if (item.Estado == "Pendiente")
-                        {
-                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Seguro?')">
-                                    Cancelar
-                                </button>
-                            </form>
-                        }*@
-                    </div>
-                </td>
-                    
+                    @* 5. Entrada *@
                     <td>@item.FechaInicio.ToShortDateString()</td>
+
+                    @* 6. Salida *@
                     <td>@item.FechaFin.ToShortDateString()</td>
 
-                   <td>
-                        <div class="text-end">
-                            @{
-                                // 1. Configuramos el Decorador según la elección del usuario
-                                SistemaReserva.Patters.IPrecioDisplay visualizador = new SistemaReserva.Patters.PrecioPesosDisplay();
-
-                                if (ViewBag.Moneda == "USD" && ViewBag.Cotizacion != null) 
-                                {
-                                    visualizador = new SistemaReserva.Patters.PrecioDolarDecorator(visualizador, (decimal)ViewBag.Cotizacion);
-                                }
-
-                                // 2. Usamos el visualizador para todos los montos
-                                string precioTotalFormateado = visualizador.Formatear(item.PrecioTotal);
-                                string precioBaseFormateado = item.TipoHabitacion != null 
-                                                            ? visualizador.Formatear(item.TipoHabitacion.PrecioBase) 
-                                                            : "";
-                            }
-
-                            @if (item.Estado == "Finalizada")
+                    @* 7. Total *@
+                    <td class="text-end">
+                        <span class="fw-bold">
+                            @if (ViewBag.Display != null)
                             {
-                                <span class="text-success fw-bold">@precioTotalFormateado</span>
-                                <br /><small class="text-muted">Pagado</small>
+                                @((ViewBag.Display as IPrecioDisplay).Formatear(item.PrecioTotal))
                             }
                             else
                             {
-                                <span class="fw-bold">@precioTotalFormateado</span>
-                                <br /><small class="text-muted">(@precioBaseFormateado c/u)</small>
+                                @item.PrecioTotal.ToString("C2") @:ARS
                             }
-                        </div>
+                        </span>
                     </td>
 
-                    @* El TD de las noches queda igual, ya que no depende de la moneda *@
-                    <td>
+                    @* 8. Noches *@
+                    <td class="text-center">
                         @{
                             int noches = (item.FechaFin - item.FechaInicio).Days;
                             if (noches <= 0) noches = 1;
                         }
-                        <span class="badge bg-light text-dark border">
-                            @noches @(noches == 1 ? "noche" : "noches")
-                        </span>
+                        @noches
                     </td>
 
-                    <td class="text-center">
-                        @if (item.Estado == "Pendiente" && SesionUsuario.Instancia.TienePermiso("Cancelar Reserva"))
-                        {
-                            <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro de que deseas cancelar esta reserva?')">
-                                    <i class="fas fa-times"></i> Cancelar
-                                </button>
-                            </form>
-                        }
+                    @* 9. Acciones Corregidas *@
+                    <td class="text-center" style="min-width: 200px;">
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                            @* A. GESTIÓN PARA STAFF (Admin o Recepcion) *@
+                            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || SesionUsuario.Instancia.TienePermiso("Recepcion"))
+                            {
+                                @* ASIGNAR: Si está pendiente y sin nro de habitación *@
+                                @if (item.Estado == "Pendiente" && item.IdHabitacion == null)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-primary px-3">
+                                        <i class="fas fa-bed me-1"></i> Asignar
+                                    </a>
+                                }
 
-                        @* --- BOTÓN DE CHECK-OUT (Solo si está activa) --- *@
-                        @if (item.Estado == "Activa")
-                        {
-                            <form asp-action="Finalizar" asp-route-id="@item.IdReserva" method="post" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-info text-white" onclick="return confirm('¿Confirmar Check-out?')">
-                                    Check-out
-                                </button>
-                            </form>
-                        }
+                                @* CHECK-IN: Si tiene habitación pero sigue pendiente *@
+                                @if (item.Estado == "Pendiente" && item.IdHabitacion != null)
+                                {
+                                    <form asp-action="CheckIn" asp-route-id="@item.IdReserva" method="post">
+                                        <button type="submit" class="btn btn-sm btn-success px-3">
+                                            <i class="fas fa-door-open me-1"></i> Check-In
+                                        </button>
+                                    </form>
+                                }
 
-                        @* --- ACCIONES DE GESTIÓN (Admin/Recepción) --- *@
-                        @if (SesionUsuario.Instancia.TienePermiso("Modificar Reserva"))
-                        {
-                            <a asp-action="Edit" asp-route-id="@item.IdReserva" class="btn btn-sm btn-warning">Editar</a>
-                        }
-                        
-                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-                        {
-                            <a asp-action="Delete" asp-route-id="@item.IdReserva" class="btn btn-sm btn-danger">Eliminar</a>
-                        }
+                                @* CHECK-OUT: Si la reserva está en curso (Activa o Hospedado) *@
+                                @if (item.Estado == "Activa" || item.Estado == "Hospedado")
+                                {
+                                    <form asp-action="CheckOut" asp-route-id="@item.IdReserva" method="post">
+                                        <button type="submit" class="btn btn-sm btn-info text-white px-3">
+                                            <i class="fas fa-sign-out-alt me-1"></i> Check-Out
+                                        </button>
+                                    </form>
+                                }
+                            }
+
+                            @* B. CANCELAR: Visible si está Pendiente y tiene el permiso *@
+                            @if (item.Estado == "Pendiente" && SesionUsuario.Instancia.TienePermiso("Cancelar Reserva"))
+                            {
+                                <form asp-action="Cancel" asp-route-id="@item.IdReserva" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Confirmar cancelación?')">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </form>
+                            }
+                        </div>
                     </td>
                 </tr>
             }

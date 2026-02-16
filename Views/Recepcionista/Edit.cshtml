@@ -1,47 +1,103 @@
 @using SistemaReserva.Patters
 @model SistemaReserva.Models.Recepcionista
 
-<h2>Editar Perfil Profesional</h2>
-<hr />
-
-<form asp-action="Edit">
-    <input type="hidden" asp-for="IdPersona" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label class="fw-bold">Legajo:</label>
-            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) {
-                <input asp-for="Legajo" class="form-control" />
-            } else {
-                <input asp-for="Legajo" class="form-control bg-light" readonly />
-            }
-            <span asp-validation-for="Legajo" class="text-danger"></span>
+<div class="container mt-4">
+    <div class="card shadow border-0">
+        <div class="card-header bg-dark text-white py-3">
+            <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>Editar Perfil: @Model.Nombre @Model.Apellido</h4>
         </div>
+        <div class="card-body p-4">
+            <form asp-action="Edit">
+                @* IDPersona oculto pero necesario para el POST *@
+                <input type="hidden" asp-for="IdPersona" />
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-        <div class="col-md-6 mb-3">
-            <label class="fw-bold">Correo Electrónico:</label>
-            @* El email es la clave del Login, mejor dejarlo readonly para el empleado *@
-            <input asp-for="Email" class="form-control bg-light" readonly />
-            <span asp-validation-for="Email" class="text-danger"></span>
+                <h5 class="text-primary border-bottom pb-2 mb-3">Información de Sistema</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="fw-bold">Número de Legajo:</label>
+                        @* Solo el Admin con permiso "Gestionar Usuarios" puede editar el legajo *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) {
+                            <input asp-for="Legajo" class="form-control" />
+                        } else {
+                            <input asp-for="Legajo" class="form-control bg-light" readonly />
+                            <small class="text-muted">Dato gestionado por administración.</small>
+                        }
+                        <span asp-validation-for="Legajo" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-5 mb-3">
+                        <label class="fw-bold">Correo Electrónico (Usuario):</label>
+                        @* El email no se edita porque es el login/ID de acceso *@
+                        <input asp-for="Email" class="form-control bg-light" readonly />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="FechaIngreso" class="form-label fw-bold">Fecha de Ingreso:</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-calendar-alt"></i></span>
+                            @* Usamos readonly y bg-light para indicar que es un dato fijo *@
+                            <input asp-for="FechaIngreso" type="text" class="form-control bg-light" 
+                                value="@Model.FechaIngreso.ToShortDateString()" readonly />
+                        </div>
+                        <small class="text-muted">Fecha de alta en el sistema.</small>
+                    </div>
+                </div>
+
+                <h5 class="text-primary border-bottom pb-2 mt-4 mb-3">Información Personal</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Nombre" class="fw-bold"></label>
+                        <input asp-for="Nombre" class="form-control" />
+                        <span asp-validation-for="Nombre" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Apellido" class="fw-bold"></label>
+                        <input asp-for="Apellido" class="form-control" />
+                        <span asp-validation-for="Apellido" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="FechaNacimiento" class="fw-bold">F. Nacimiento</label>
+                        <input asp-for="FechaNacimiento" type="date" class="form-control" />
+                        <span asp-validation-for="FechaNacimiento" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Telefono" class="fw-bold"></label>
+                        <input asp-for="Telefono" class="form-control" placeholder="+54..." />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Genero" class="fw-bold"></label>
+                        <select asp-for="Genero" class="form-select">
+                            <option value="">Seleccionar...</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Nacionalidad" class="fw-bold"></label>
+                        <input asp-for="Nacionalidad" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Ciudad" class="fw-bold"></label>
+                        <input asp-for="Ciudad" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-primary px-5">
+                        <i class="fas fa-save me-2"></i>Guardar Cambios
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
         </div>
     </div>
-
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label asp-for="Nombre" class="fw-bold"></label>
-            <input asp-for="Nombre" class="form-control" />
-            <span asp-validation-for="Nombre" class="text-danger"></span>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label asp-for="Apellido" class="fw-bold"></label>
-            <input asp-for="Apellido" class="form-control" />
-            <span asp-validation-for="Apellido" class="text-danger"></span>
-        </div>
-    </div>
-
-    <div class="form-group mt-4">
-        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Volver</a>
-    </div>
-</form>
+</div>

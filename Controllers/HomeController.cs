@@ -1,18 +1,18 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SistemaReserva.Models;
 
 namespace SistemaReserva.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
+    private readonly SistemaReservaContext _context;
 
-    public HomeController(ILogger<HomeController> logger)
-    {
-        _logger = logger;
-    }
-
+        public HomeController(SistemaReservaContext context)
+        {
+            _context = context;
+        }
     public IActionResult Index()
     {
         return View();
@@ -27,5 +27,13 @@ public class HomeController : Controller
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    // ESTE ES EL NUEVO MÉTODO
+    public async Task<IActionResult> Habitaciones()
+    {
+        // Traemos todos los tipos de habitación para mostrarlos
+        var tipos = await _context.TipoHabitacion.ToListAsync();
+        return View(tipos);
     }
 }

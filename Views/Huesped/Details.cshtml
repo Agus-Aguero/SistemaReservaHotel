@@ -3,109 +3,137 @@
 
 @{
     ViewData["Title"] = "Perfil del Huésped";
+    // Obtenemos el decorador configurado en el controlador
+    var display = ViewBag.Display as IPrecioDisplay;
 }
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Ficha del Huésped</h1>
-        <span class="badge bg-primary">Huésped</span>
     </div>
 
-    <div class="card shadow-sm mt-3">
+    @* --- SECCIÓN 2: DATOS PERSONALES ACTUALIZADOS --- *@
+    <div class="card shadow-sm">
         <div class="card-header bg-white">
-            <h5 class="mb-0 text-primary">Datos Personales</h5>
+            <h5 class="mb-0 text-primary"><i class="fas fa-id-card me-2"></i>Información Personal</h5>
         </div>
         <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3">Nombre Completo</dt>
-                <dd class="col-sm-9">@Model.Apellido, @Model.Nombre</dd>
+            <div class="row">
+                <div class="col-md-6 border-end">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Nombre Completo</dt>
+                        <dd class="col-sm-7">@Model.Apellido, @Model.Nombre</dd>
 
-                <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9 text-info">@Model.Email</dd>
+                        <dt class="col-sm-5">Email</dt>
+                        <dd class="col-sm-7 text-info">@Model.Email</dd>
 
-                <dt class="col-sm-3">Ciudad</dt>
-                <dd class="col-sm-9">@(Model.Ciudad?? "No especificada")</dd>
+                        <dt class="col-sm-5">F. Nacimiento</dt>
+                        <dd class="col-sm-7">@Model.FechaNacimiento.ToString("dd/MM/yyyy")</dd>
 
-                <dt class="col-sm-3">Provincia</dt>
-                <dd class="col-sm-9">@(Model.Provincia ?? "No especificada")</dd>
+                        <dt class="col-sm-5">Género</dt>
+                        <dd class="col-sm-7">@(Model.Genero ?? "No especificado")</dd>
+                    </dl>
+                </div>
+                <div class="col-md-6 ps-md-4">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Teléfono</dt>
+                        <dd class="col-sm-7">@(Model.Telefono ?? "No especificado")</dd>
 
-                <dt class="col-sm-3">País</dt>
-                <dd class="col-sm-9">@(Model.Pais ?? "No especificado")</dd>
-            </dl>
+                        <dt class="col-sm-5">Nacionalidad</dt>
+                        <dd class="col-sm-7">@(Model.Nacionalidad ?? "No especificada")</dd>
+
+                        <dt class="col-sm-5">Ubicación</dt>
+                        <dd class="col-sm-7">
+                            @(Model.Ciudad ?? "No especificada"), @(Model.Provincia ?? "")<br />
+                            <strong>@(Model.Pais ?? "No especificado")</strong>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
         </div>
     </div>
 
+    @* --- SECCIÓN 3: HISTORIAL DE ESTADÍAS CON COLUMNA DE NOCHES --- *@
+    @* --- TABLA DE HISTORIAL ACTUALIZADA --- *@
     <div class="mt-5">
-        <h3><i class="fas fa-history"></i> Historial de Estadías</h3>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Estadías</h3>
+            @* Los botones de moneda ahora recargan la ficha completa *@
+            <div class="btn-group shadow-sm">
+                <a asp-action="Details" asp-route-moneda="ARS" 
+                class="btn btn-sm @(ViewBag.Moneda == "ARS" ? "btn-dark" : "btn-outline-dark")">ARS ($)</a>
+                <a asp-action="Details" asp-route-moneda="USD" 
+                class="btn btn-sm @(ViewBag.Moneda == "USD" ? "btn-success" : "btn-outline-success")">USD (U$D)</a>
+            </div>
+        </div>
         <hr />
 
         @if (Model.Reservas != null && Model.Reservas.Any())
         {
-            <table class="table table-hover mt-3">
-                <thead class="table-light">
-                    <tr>
-                        <th>Entrada</th>
-                        <th>Salida</th>
-                        <th>Categoría</th>
-                        <th>Hab.</th>
-                        <th>Estado</th>
-                        <th class="text-end">Monto Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var res in Model.Reservas.OrderByDescending(r => r.FechaInicio))
-                    {
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <td>@res.FechaInicio.ToShortDateString()</td>
-                            <td>@res.FechaFin.ToShortDateString()</td>
-                            <td>@res.TipoHabitacion?.Nombre</td>
-                            <td>
-                                @if (res.IdHabitacion.HasValue)
-                                {
-                                    <span class="badge bg-dark">#@res.Habitacion?.Numero</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted small">Sin asignar</span>
-                                }
-                            </td>
-                            <td>
-                                @{
-                                    var color = res.Estado == "Finalizada" ? "bg-success" : 
-                                                res.Estado == "Activa" ? "bg-primary" : "bg-warning text-dark";
-                                }
-                                <span class="badge @color">@res.Estado</span>
-                            </td>
-                            <td class="text-end fw-bold">@res.PrecioTotal.ToString("C2")</td>
+                            <th>Entrada / Salida</th>
+                            <th class="text-center">Noches</th> @* Columna de Noches *@
+                            <th>Categoría / Hab.</th>
+                            <th>Estado</th>
+                            <th class="text-end">Monto Total</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var res in Model.Reservas.OrderByDescending(r => r.FechaInicio))
+                        {
+                            @* Calculamos las noches para cada fila del historial *@
+                            int nochesEstadia = (res.FechaFin - res.FechaInicio).Days;
+                            if (nochesEstadia <= 0) nochesEstadia = 1;
+
+                            <tr>
+                                <td>
+                                    <span class="small text-muted">In:</span> @res.FechaInicio.ToShortDateString() <br />
+                                    <span class="small text-muted">Out:</span> @res.FechaFin.ToShortDateString()
+                                </td>
+                                <td class="text-center fw-bold">@nochesEstadia</td>
+                                <td>
+                                    @res.TipoHabitacion?.Nombre <br />
+                                    <small class="text-muted">@(res.Habitacion != null ? "#" + res.Habitacion.Numero : "Sin asignar")</small>
+                                </td>
+                                <td>
+                                    @{
+                                        var claseEstado = res.Estado switch {
+                                            "Finalizada" => "bg-success",
+                                            "Activa" => "bg-primary",
+                                            "Cancelada" => "bg-danger",
+                                            _ => "bg-warning text-dark"
+                                        };
+                                    }
+                                    <span class="badge @claseEstado">@res.Estado</span>
+                                </td>
+                                <td class="text-end fw-bold text-success">
+                                    @* El Decorator aplica la moneda elegida (ARS o USD) *@
+                                    @((ViewBag.Display as IPrecioDisplay).Formatear(res.PrecioTotal))
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
         else
         {
-            <div class="alert alert-light border">
-                Este huésped no tiene reservas previas en el sistema.
+            <div class="alert alert-light border shadow-sm">
+                Este huésped no tiene reservas registradas.
             </div>
         }
     </div>
 
+    @* --- BOTONES DE ACCIÓN --- *@
     <div class="mt-4 pb-5">
-        <a asp-action="Edit" asp-route-id="@Model.IdPersona" class="btn btn-warning">
-            <i class="fas fa-edit"></i> Editar mis Datos
+        <a asp-action="Edit" asp-route-id="@Model.IdPersona" class="btn btn-warning shadow-sm">
+            <i class="fas fa-edit me-1"></i> Editar mis Datos
         </a>
-
-        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-        {
-            @* Solo el Admin ve el botón de volver al listado general *@
-            <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
-        }
-        else
-        {
-            @* El Huésped vuelve a su panel de reservas *@
-            <a asp-controller="Reserva" asp-action="Index" class="btn btn-secondary">
-                Ir a mis Reservas
-            </a>
-        }
+        <a asp-controller="Reserva" asp-action="Index" class="btn btn-outline-secondary ms-2">
+            Volver a mis Reservas
+        </a>
     </div>
 </div>

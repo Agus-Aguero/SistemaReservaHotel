@@ -1,4 +1,4 @@
-﻿@using SistemaReserva.Patters @* <--- Asegurate que este sea el namespace de tu Singleton *@
+﻿@using SistemaReserva.Patters
 
 <!DOCTYPE html>
 <html lang="en">
@@ -17,127 +17,144 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
-<body>
+<body style="background-color: #ececee;">
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">SistemaReserva</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">🏠 Inicio</a>
-                        </li>
+    @* CAMBIO 1: navbar-dark para texto claro y background-color con el azul de ArgenTower *@
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark border-bottom box-shadow mb-3" style="background-color: #3a539b;">
+        <div class="container-fluid">
+            
+            @* CAMBIO 2: Integra el Logo y el nombre Argen Tower *@
+            <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
+                @* Ajusta el height (40px) si el logo es muy grande o muy chico *@
+                <img src="~/images/Logo.png" alt="Argen Tower Logo" style="height: 55px; margin-right: 15px;" />
+            </a>
 
-                        @if (SesionUsuario.Instancia.Email != null)
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <ul class="navbar-nav flex-grow-1">
+                    <li class="nav-item">
+                        @* CAMBIO 3: text-white en lugar de text-dark *@
+                        <a class="nav-link text-white" asp-controller="Home" asp-action="Index">🏠 Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Habitaciones">
+                            🛏️ Nuestras Habitaciones
+                        </a>
+                    </li>
+
+                    @if (SesionUsuario.Instancia.Email != null)
+                    {
+                        @* 1. Menú de Usuarios *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") ||
+                       SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes"))
                         {
-                            @* 1. Usuarios e informe de Permisos (Admin) *@
-                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
-                            {
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle text-dark" href="#" id="navbarDropdownPersonas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        👥 Usuarios
-                                    </a>
-                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownPersonas">
-                                        <li><a class="dropdown-item" asp-controller="Huesped" asp-action="Index">Huéspedes</a></li>
-                                        <li><a class="dropdown-item" asp-controller="Recepcionista" asp-action="Index">Recepcionistas (Staff)</a></li>
-                                        <li><a class="dropdown-item" asp-controller="Persona" asp-action="Index">Todas las Personas</a></li>
-                                       @* <li><hr class="dropdown-divider"></li>*@
-                                        @*<li><a class="dropdown-item text-primary" asp-controller="Permisos" asp-action="Gestionar" asp-route-idUsuario="1">🌳 Ver Árbol de Permisos</a></li>*@
-                                    </ul>
-                                </li>
-                            }
-
-                            @* 2. Infraestructura (Admin) *@
-                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones"))
-                            {
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle text-dark" href="#" id="navbarDropdownHab" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        🏨 Infraestructura
-                                    </a>
-                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownHab">
-                                        <li><a class="dropdown-item" asp-controller="Habitacion" asp-action="Index">Listado de Habitaciones</a></li>
-                                        <li><a class="dropdown-item" asp-controller="TipoHabitacion" asp-action="Index">Tipos de Habitación</a></li>
-                                    </ul>
-                                </li>
-                            }
-
-                            @* 3. Sección de Reservas y Gestión Operativa *@
-                            @if (SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
-                            {
-                                @* Si es Admin o Recepcionista (Gestionan el hotel) *@
-                                if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
-                                    SesionUsuario.Instancia.TienePermiso("CheckIn")) 
-                                {
-                                    <li class="nav-item">
-                                        <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📋 Panel de Reservas</a>
-                                    </li>
-                                    @*<li class="nav-item">
-                                        <a class="nav-link text-primary fw-bold" asp-controller="Habitacion" asp-action="Disponibilidad">🔑 Check-In/Out</a>
-                                    </li>*@
-                                }
-                                else @* Es un Huésped (Solo ve lo suyo) *@
-                                {
-                                    <li class="nav-item">
-                                        <a class="nav-link text-dark fw-bold" asp-controller="Reserva" asp-action="Index">📅 Mis Reservas</a>
-                                    </li>
-                                }
-                            }
-                            @if (SesionUsuario.Instancia.TienePermiso("CheckIn") || SesionUsuario.Instancia.TienePermiso("CheckOut"))
-                            {
-                               <li class="nav-item">
-                                    <a class="nav-link text-primary fw-bold" asp-controller="Habitacion" asp-action="Disponibilidad">
-                                        @*<i class="fas fa-key"></i> Check-In/Out*@
-                                    </a>
-                                </li>
-                            }
-
-                            @* 4. MI CUENTA (Lado derecho) *@
-                            <li class="nav-item dropdown ms-auto">
-                                <a class="nav-link dropdown-toggle btn btn-light border-0" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    👤 @SesionUsuario.Instancia.Email
+                            <li class="nav-item dropdown">
+                                @* CAMBIO 3: text-white *@
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdownPersonas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    👥 Usuarios
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navbarDropdownUser">
-                                    
-                                    @* Ocultamos "Mis Datos" para cualquier Administrador *@
-                                    @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownPersonas">
+                                    @* Los items del dropdown siguen siendo oscuros porque el fondo del dropdown es blanco *@
+                                    @if (SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") ||
+                                   SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                                     {
-                                        <a class="dropdown-item" asp-controller="Account" asp-action="MiPerfil">
-                                            <i class="fas fa-id-card"></i> Mis Datos (Perfil)
-                                        </a>
+                                        <li><a class="dropdown-item" asp-controller="Huesped" asp-action="Index">Huéspedes</a></li>
                                     }
 
-                                    <li>
-                                        <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
-                                            <i class="fas fa-key"></i> Cambiar Contraseña
-                                        </a>
-                                    </li>
-
-                                    <li><hr class="dropdown-divider"></li>
-                                    
-                                    <li>
-                                        <a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout">
-                                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                                        </a>
-                                    </li>
+                                    @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Recepcionista" asp-action="Index">Recepcionistas</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
-                        else
+
+                        @* 2. Infraestructura (Admin) *@
+                        if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones"))
                         {
-                            @* BOTÓN DE INGRESAR CUANDO NO HAY SESIÓN *@
-                            <li class="nav-item ms-auto">
-                                <a class="nav-link btn btn-outline-primary px-4" asp-controller="Account" asp-action="Login">🔑 Ingresar</a>
+                            <li class="nav-item dropdown">
+                                @* CAMBIO 3: text-white *@
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdownHab" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    🏨 Infraestructura
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownHab">
+                                    <li><a class="dropdown-item" asp-controller="Habitacion" asp-action="Index">Listado de Habitaciones</a></li>
+                                    <li><a class="dropdown-item" asp-controller="TipoHabitacion" asp-action="Index">Tipos de Habitación</a></li>
+                                </ul>
                             </li>
                         }
-                    </ul>
-                </div>
+
+                        @* 3. Sección de Reservas y Gestión Operativa *@
+                        @if (SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
+                        {
+                            @* Si es Admin o Recepcionista *@
+                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") ||
+                           SesionUsuario.Instancia.TienePermiso("CheckIn"))
+                            {
+                                <li class="nav-item">
+                                    @* CAMBIO 3: text-white *@
+                                    <a class="nav-link text-white fw-bold" asp-controller="Reserva" asp-action="Index">📋 Panel de Reservas</a>
+                                </li>
+                            }
+                            else @* Es un Huésped *@
+                            {
+                                <li class="nav-item">
+                                    @* CAMBIO 3: text-white *@
+                                    <a class="nav-link text-white fw-bold" asp-controller="Reserva" asp-action="Index">📅 Mis Reservas</a>
+                                </li>
+                            }
+                        }
+
+                        @* 4. MI CUENTA (Lado derecho) *@
+                        <li class="nav-item dropdown ms-auto">
+                            @* CAMBIO 4: Quitamos 'btn btn-light' para que sea un link limpio blanco *@
+                            <a class="nav-link dropdown-toggle text-white fw-bold" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                👤 @SesionUsuario.Instancia.Email
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navbarDropdownUser">
+
+                                @if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                                {
+                                    <a class="dropdown-item" asp-controller="Account" asp-action="MiPerfil">
+                                        <i class="fas fa-id-card"></i> Mis Datos (Perfil)
+                                    </a>
+                                }
+
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
+                                        <i class="fas fa-key"></i> Cambiar Contraseña
+                                    </a>
+                                </li>
+
+                                <li><hr class="dropdown-divider"></li>
+
+                                <li>
+                                    <a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout">
+                                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        @* BOTÓN DE INGRESAR CUANDO NO HAY SESIÓN *@
+                        <li class="nav-item ms-auto">
+                            <a class="btn btn-light px-4 fw-bold" 
+                            style="color: #3a539b;" 
+                            asp-controller="Account" asp-action="Login">
+                            🔑 Ingresar
+                            </a>
+                        </li>
+                    }
+                </ul>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
+</header>
     
     <div class="container">
         <main role="main" class="pb-3">
