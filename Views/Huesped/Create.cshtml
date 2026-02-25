@@ -2,7 +2,7 @@
 @model SistemaReserva.Models.Huesped
 
 @{
-    bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+    bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || SesionUsuario.Instancia.TienePermiso("Recepcion");
     ViewData["Title"] = esAdmin ? "Registrar Nuevo Huésped" : "Completar mi Perfil";
 }
 

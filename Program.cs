@@ -3,20 +3,18 @@ using SistemaReserva.Models;
 using SistemaReserva.Models.Seguridad;
 using SistemaReserva.Patters;
 
-// 1. Declaración del BUILDER (Esto es lo que te falta)
 var builder = WebApplication.CreateBuilder(args);
 
-// 2. Configuración de Servicios (Inyección de dependencias)
+
 builder.Services.AddControllersWithViews();
 
 var connectionString = builder.Configuration.GetConnectionString("SistemaReservaContext");
 builder.Services.AddDbContext<SistemaReservaContext>(options =>
     options.UseSqlServer(connectionString));
 
-// 3. Creación de la APP (Aquí es donde builder se transforma en app)
 var app = builder.Build();
 
-// 4. EL SEEDER (Implementación del Patrón Composite T04)
+// EL SEEDER 
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -48,9 +46,9 @@ using (var scope = app.Services.CreateScope())
         // D. Armamos la Jerarquía (Recursividad)
 
         // --- PERMISOS PARA EL HUÉSPED ---
-        familiaHuesped.Agregar(patVerReservas);    // Para ver su historial
-        familiaHuesped.Agregar(patCrearReserva);   // Para hacer reservas nuevas
-        familiaHuesped.Agregar(patCancelarReserva); // Para anular sus reservas
+        familiaHuesped.Agregar(patVerReservas);
+        familiaHuesped.Agregar(patCrearReserva); 
+        familiaHuesped.Agregar(patCancelarReserva);
 
         // Agregamos Ver Reservas a Recepción
         familiaRecepcion.Agregar(familiaHuesped); 
@@ -81,7 +79,7 @@ using (var scope = app.Services.CreateScope())
             var adminUser = new Usuario {
                 Email = "admin@argentower.com",
                 Password = Encriptador.GenerarHash("Admin123"),
-                Perfil = familiaAdmin, // Le asignamos el Composite de Admin
+                Grupos = new List<Familia> { familiaAdmin },
                 PreguntaSeguridad = "¿Nombre del hotel?",
                 RespuestaSeguridad = "ArgenTower"
             };
@@ -90,7 +88,7 @@ using (var scope = app.Services.CreateScope())
             var rootUser = new Usuario {
                 Email = "root@argentower.com",
                 Password = Encriptador.GenerarHash("RootEmergency2026"),
-                Perfil = familiaAdmin, // También es Admin
+                Grupos = new List<Familia> { familiaAdmin },
                 PreguntaSeguridad = "¿Nombre del hotel?",
                 RespuestaSeguridad = "ArgenTower"
             };
@@ -101,7 +99,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 5. Configuración del Pipeline (Middleware)
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -117,5 +114,4 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// 6. Ejecución
 app.Run();

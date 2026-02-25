@@ -14,10 +14,15 @@ namespace SistemaReserva.Models
         public int IdUsuario { get; set; }
         public string Email { get; set; }
         public string Password { get; set; }
-        public int? PerfilId { get; set; }
+       /* public int? PerfilId { get; set; }
         [ForeignKey("PerfilId")]
-        public virtual Componente? Perfil { get; set; }
+        public virtual Componente? Perfil { get; set; }*/
+        public virtual ICollection<Familia> Grupos { get; set; }
         public string PreguntaSeguridad { get; set; }
         public string RespuestaSeguridad { get; set; } 
+        public Usuario()
+        {
+            Grupos = new List<Familia>();
+        }
     }
 }

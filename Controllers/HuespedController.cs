@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SistemaReserva.Models;
+using SistemaReserva.Models.Seguridad;
 using SistemaReserva.Patters;
 
 namespace SistemaReserva.Controllers
@@ -105,8 +106,7 @@ namespace SistemaReserva.Controllers
                 {
                     Email = model.Email,
                     Password = Encriptador.GenerarHash("1234"),
-                    Perfil = perfilHuesped,
-                    PerfilId = perfilHuesped.IdComponente,
+                    Grupos = new List<Familia> { (Familia)perfilHuesped },
                     PreguntaSeguridad = "Configurada por Admin",
                     RespuestaSeguridad = "1234"
                 };
@@ -145,11 +145,16 @@ namespace SistemaReserva.Controllers
         {
             if (id != huesped.IdPersona) return NotFound();
 
-            // VALIDACIÓN DE IDENTIDAD: El huésped solo puede editarse a sí mismo
-            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            // 1. CORRECCIÓN LÓGICA: Ahora "Staff" es tanto el Admin como Recepción
+            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                        SesionUsuario.Instancia.TienePermiso("Recepcion");
+
+            // VALIDACIÓN DE IDENTIDAD: Si no es staff, solo puede editarse a sí mismo
             if (!esStaff && huesped.Email != SesionUsuario.Instancia.Email)
             {
-                return Forbid(); // O redireccionar con error
+                // 2. CORRECCIÓN TÉCNICA: Adiós Forbid(). Usamos una redirección manual
+                TempData["Error"] = "No tienes permisos para editar el perfil de otro usuario.";
+                return RedirectToAction("Index", "Home"); 
             }
 
             if (ModelState.IsValid)
@@ -158,20 +163,23 @@ namespace SistemaReserva.Controllers
                 {
                     if (!esStaff)
                     {
-                        // Protegemos el email para que no lo cambie manualmente
+                        // Protegemos el email para que el huésped no lo cambie manualmente
                         huesped.Email = SesionUsuario.Instancia.Email;
                     }
 
                     _context.Update(huesped);
                     await _context.SaveChangesAsync();
                     
-                    // REDIRECCIÓN INTELIGENTE
-                    if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                    // REDIRECCIÓN INTELIGENTE CORREGIDA
+                    if (esStaff)
                     {
+                        // El staff (Admin o Recepcionista) vuelve a la lista de huéspedes
+                        TempData["Success"] = "Huésped actualizado correctamente.";
                         return RedirectToAction(nameof(Index));
                     }
                     else
                     {
+                        // El huésped común vuelve a su pantalla de inicio
                         TempData["Success"] = "Perfil actualizado con éxito.";
                         return RedirectToAction("Index", "Home");
                     }

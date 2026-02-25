@@ -29,11 +29,23 @@ public class HomeController : Controller
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 
-    // ESTE ES EL NUEVO MÉTODO
-    public async Task<IActionResult> Habitaciones()
+    public async Task<IActionResult> Habitaciones(string moneda = "ARS")
     {
-        // Traemos todos los tipos de habitación para mostrarlos
-        var tipos = await _context.TipoHabitacion.ToListAsync();
-        return View(tipos);
+        var tiposHabitacion = await _context.TipoHabitacion.ToListAsync();
+
+        SistemaReserva.Patters.IPrecioDisplay display = new SistemaReserva.Patters.PrecioPesosDisplay();
+
+        if (moneda == "USD")
+        {
+            var service = new DolarService();
+            decimal cotizacion = await service.ObtenerCotizaciónBlue();
+            display = new SistemaReserva.Patters.PrecioDolarDecorator(display, cotizacion);
+            ViewBag.Cotizacion = cotizacion; // Opcional, por si querés mostrar el valor del dólar
+        }
+
+        ViewBag.Display = display;
+        ViewBag.Moneda = moneda;
+
+        return View(tiposHabitacion);
     }
 }

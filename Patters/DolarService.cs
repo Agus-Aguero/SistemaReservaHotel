@@ -9,7 +9,7 @@ public class DolarService
             var response = await client.GetFromJsonAsync<JsonElement>("https://dolarapi.com/v1/dolares/blue");
             return response.GetProperty("venta").GetDecimal();
         } catch {
-            return 1470; // Valor de respaldo (fallback)
+            return 1430; // Valor de respaldo 
         }
     }
 }

@@ -20,16 +20,16 @@ namespace SistemaReserva.Controllers
         {
             // Buscamos el usuario e incluimos su Perfil (Composite)
             var usuario = _context.Usuario
-                .Include(u => u.Perfil)
+                .Include(u => u.Grupos)
                     .ThenInclude(p => p.Hijos)
                 .FirstOrDefault(u => u.IdUsuario == idUsuario);
 
             var listaParaVista = new List<string>();
             
-            if (usuario?.Perfil != null)
+            if (usuario.Grupos.FirstOrDefault() != null)
             {
                 // Llamada a la función recursiva
-                GenerarListaTreeView(usuario.Perfil, listaParaVista, 0);
+                GenerarListaTreeView(usuario.Grupos.FirstOrDefault(), listaParaVista, 0);
             }
 
             return View(listaParaVista);

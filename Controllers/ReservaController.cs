@@ -16,7 +16,6 @@ namespace SistemaReserva.Controllers
             _context = context;
         }
 
-
         public async Task<IActionResult> Index(string moneda = "ARS")
         {
             // 1. VALIDACIÓN DE SEGURIDAD 
@@ -34,7 +33,6 @@ namespace SistemaReserva.Controllers
                 .AsQueryable();
 
             // 3. FILTRO DE PRIVACIDAD ACTUALIZADO:
-            // Agregamos la validación para el perfil "Recepcion"
             bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
                         SesionUsuario.Instancia.TienePermiso("Recepcion");
 
@@ -53,10 +51,10 @@ namespace SistemaReserva.Controllers
             // 4. EJECUTAMOS LA CONSULTA FILTRADA
             var reservas = await query.ToListAsync();
 
-            // 5. LÓGICA DE MONEDA (Se mantiene igual)
+            // 5. LÓGICA DE MONEDA
             ViewBag.Moneda = moneda;
 
-            // 5.1. Componente Concreto Base (Pesos)
+            // 5.1. Componente Concreto Base
             IPrecioDisplay display = new PrecioPesosDisplay();
 
             if (moneda == "USD") 
@@ -65,11 +63,10 @@ namespace SistemaReserva.Controllers
                 decimal cotizacion = await service.ObtenerCotizaciónBlue();
                 ViewBag.Cotizacion = cotizacion;
 
-                // 5.2. Envolvemos el objeto base con el Decorador de Dólares
                 display = new PrecioDolarDecorator(display, cotizacion);
             }
 
-            // 5.3. Pasamos el decorador (ya sea simple o decorado) a la vista
+            // 5.3. Pasamos el decorador a la vista
             ViewBag.Display = display;
 
             return View(reservas);
@@ -146,9 +143,13 @@ namespace SistemaReserva.Controllers
             ModelState.Remove("Huesped");
             ModelState.Remove("TipoHabitacion");
 
+            if (reserva.FechaFin < reserva.FechaInicio)
+            {
+                ModelState.AddModelError("FechaFin", "La fecha de salida no puede ser anterior a la fecha de ingreso.");
+            }
+
             if (ModelState.IsValid)
             {
-                // --- LÓGICA DE POOLS COMPATIBLES ---
                 // IDs: 1:Twin, 2:Doble, 3:Doble Premium, 4:Cuadr, 5:Cuadr Indiv, 6:Suite
                 List<int> idsCompatibles = new List<int> { reserva.IdTipoHabitacion };
 
@@ -256,21 +257,50 @@ namespace SistemaReserva.Controllers
         {
             if (id == null) return NotFound();
 
-            // Traemos la reserva incluyendo el Tipo para saber qué filtrar
+            // 1. Traemos la reserva actual
             var reserva = await _context.Reserva
-                .Include(r => r.TipoHabitacion)
+                .Include(r => r.TipoHabitacion) // Ojo: Verifica si tu propiedad se llama 'Tipo' o 'TipoHabitacion' en el modelo
                 .Include(r => r.Huesped)
                 .FirstOrDefaultAsync(m => m.IdReserva == id);
 
             if (reserva == null) return NotFound();
 
-            // FILTRADO: Buscamos habitaciones que coincidan con el tipo Y estén disponibles
-            // También incluimos la habitación que ya tenga asignada (por si solo estamos editando otra cosa)
-            var habitacionesDisponibles = await _context.Habitacion
-                .Where(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion && (h.Disponible || h.IdHabitacion == reserva.IdHabitacion))
+            // 2. LÓGICA DE DISPONIBILIDAD REAL (POR FECHAS)
+            // Buscamos los IDs de habitaciones que YA están ocupadas por OTROS en esas fechas
+            var idsHabitacionesOcupadas = await _context.Reserva
+                .Where(r => r.IdReserva != id) // Importante: Ignoramos la reserva actual (no compite consigo misma)
+                .Where(r => r.IdHabitacion != null) // Solo reservas que ya tienen cuarto asignado
+                .Where(r => r.Estado != "Cancelada") // Ignoramos las canceladas
+                .Where(r => r.FechaInicio < reserva.FechaFin && r.FechaFin > reserva.FechaInicio) // Lógica de solapamiento de fechas
+                .Select(r => r.IdHabitacion.Value)
                 .ToListAsync();
 
+            // 3. FILTRADO FINAL
+            // Traemos las habitaciones que:
+            // A. Son del mismo TIPO que la reserva
+            // B. No están en la lista de ocupadas (idsHabitacionesOcupadas)
+            // C. Están operativas (h.Disponible = true) O es la habitación que ya tiene esta reserva
+            var habitacionesDisponibles = await _context.Habitacion
+                .Where(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion)
+                .Where(h => !idsHabitacionesOcupadas.Contains(h.IdHabitacion)) // ¡Aquí está la magia!
+                .Where(h => h.Disponible || h.IdHabitacion == reserva.IdHabitacion)
+                .Select(h => new 
+                {
+                    IdHabitacion = h.IdHabitacion,
+                    Numero = $"Habitación {h.Numero}" // Formato bonito para el DropDown
+                })
+                .ToListAsync();
+
+            // 4. Cargamos los ViewData
+            // Si la lista está vacía, agregamos una opción manual para avisar visualmente
+            if (!habitacionesDisponibles.Any())
+            {
+                habitacionesDisponibles.Add(new { IdHabitacion = 0, Numero = "No hay habitaciones libres en estas fechas" });
+            }
+
             ViewData["IdHabitacion"] = new SelectList(habitacionesDisponibles, "IdHabitacion", "Numero", reserva.IdHabitacion);
+            
+            // Mantenemos los otros selects por si acaso, aunque en Edit generalmente solo tocamos la habitación
             ViewData["IdPersona"] = new SelectList(_context.Persona, "IdPersona", "Apellido", reserva.IdPersona);
             ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
 
@@ -285,7 +315,6 @@ namespace SistemaReserva.Controllers
             if (id != reserva.IdReserva) return NotFound();
 
             // 1. LIMPIEZA DE VALIDACIONES
-            // Esto evita que el formulario rebote por objetos que no están en la vista
             ModelState.Remove("Huesped");
             ModelState.Remove("Usuario");
             ModelState.Remove("TipoHabitacion");
@@ -296,43 +325,60 @@ namespace SistemaReserva.Controllers
                 try
                 {
                     // 2. RECUPERAR DATOS ORIGINALES
-                    // Buscamos la reserva actual sin rastrearla (AsNoTracking) para obtener el IdUsuario original
                     var reservaOriginal = await _context.Reserva.AsNoTracking()
                         .FirstOrDefaultAsync(r => r.IdReserva == id);
                     
                     if (reservaOriginal != null)
                     {
-                        reserva.IdUsuario = reservaOriginal.IdUsuario; // Mantenemos el creador original
+                        reserva.IdUsuario = reservaOriginal.IdUsuario;
+                        // Importante: Si la vista no envía IdPersona, mantener el original
+                        if (reserva.IdPersona == 0) reserva.IdPersona = reservaOriginal.IdPersona;
                     }
 
-                    // 3. VALIDACIÓN DE DISPONIBILIDAD (Tu lógica actual)
+                    // 3. VALIDACIÓN DE DISPONIBILIDAD DEL POOL (La que ya tenías)
                     var totalHabitaciones = await _context.Habitacion
                         .CountAsync(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion);
 
                     var reservasOcupadas = await _context.Reserva
                         .CountAsync(r => r.IdTipoHabitacion == reserva.IdTipoHabitacion &&
-                                        r.IdReserva != id &&
-                                        r.Estado != "Cancelada" &&
-                                        reserva.FechaInicio < r.FechaFin && 
-                                        reserva.FechaFin > r.FechaInicio);
+                                            r.IdReserva != id &&
+                                            r.Estado != "Cancelada" &&
+                                            reserva.FechaInicio < r.FechaFin && 
+                                            reserva.FechaFin > r.FechaInicio);
 
                     if (reservasOcupadas >= totalHabitaciones)
                     {
                         var tipo = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                         ModelState.AddModelError("", $"No hay cupo para el tipo '{tipo?.Nombre}' en esas fechas.");
-                        CargarCombosEdit(reserva); 
+                        // OJO: Aquí debes llamar a tu método de recarga, pero corregido para que filtre habitaciones
+                        await RecargarCombosEditFiltrado(reserva); 
                         return View(reserva);
                     }
 
-                    // 4. RECALCULAR PRECIO Y ESTADO
+                    // 4. NUEVA VALIDACIÓN: DISPONIBILIDAD FÍSICA DE LA HABITACIÓN (Si eligió una)
+                    if (reserva.IdHabitacion != null)
+                    {
+                        bool habitacionOcupada = await _context.Reserva
+                            .AnyAsync(r => r.IdReserva != id
+                                        && r.IdHabitacion == reserva.IdHabitacion
+                                        && r.Estado != "Cancelada"
+                                        && r.FechaInicio < reserva.FechaFin 
+                                        && r.FechaFin > reserva.FechaInicio);
+
+                        if (habitacionOcupada)
+                        {
+                            ModelState.AddModelError("IdHabitacion", "La habitación seleccionada ya está ocupada en esas fechas.");
+                            await RecargarCombosEditFiltrado(reserva);
+                            return View(reserva);
+                        }
+                    }
+
+                    // 5. RECALCULAR PRECIO Y GUARDAR
                     var tipoHab = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                     if (tipoHab != null) {
                         reserva.PrecioTotal = CalcularPresupuesto(reserva.FechaInicio, reserva.FechaFin, tipoHab.PrecioBase);
                     }
 
-                    // Si se asignó habitación, el estado pasa a ser el que definas (ej: "Pendiente" pero con pieza)
-                    // El Check-In se encargará de pasarla a "Hospedado"
-                    
                     _context.Update(reserva);
                     await _context.SaveChangesAsync();
                 }
@@ -344,8 +390,31 @@ namespace SistemaReserva.Controllers
                 return RedirectToAction(nameof(Index));
             }
             
-            CargarCombosEdit(reserva); 
+            await RecargarCombosEditFiltrado(reserva); 
             return View(reserva);
+        }
+
+        private async Task RecargarCombosEditFiltrado(Reserva reserva)
+        {
+            var idsOcupadas = await _context.Reserva
+                .Where(r => r.IdReserva != reserva.IdReserva && r.IdHabitacion != null && r.Estado != "Cancelada" 
+                            && r.FechaInicio < reserva.FechaFin && r.FechaFin > reserva.FechaInicio)
+                .Select(r => r.IdHabitacion.Value)
+                .ToListAsync();
+
+            var habitacionesDisponibles = await _context.Habitacion
+                .Where(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion 
+                            && !idsOcupadas.Contains(h.IdHabitacion)
+                            && (h.Disponible || h.IdHabitacion == reserva.IdHabitacion))
+                .Select(h => new { IdHabitacion = h.IdHabitacion, Numero = $"Habitación {h.Numero}" })
+                .ToListAsync();
+
+            if (!habitacionesDisponibles.Any()) 
+                habitacionesDisponibles.Add(new { IdHabitacion = 0, Numero = "Sin disponibilidad física" });
+
+            ViewData["IdHabitacion"] = new SelectList(habitacionesDisponibles, "IdHabitacion", "Numero", reserva.IdHabitacion);
+            ViewData["IdPersona"] = new SelectList(_context.Persona, "IdPersona", "Apellido", reserva.IdPersona);
+            ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
         }
 
         // Método auxiliar para no repetir código de los SelectList
@@ -387,8 +456,6 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
-        // MÉTODO PARA CHECK-IN
         [HttpPost]
         public async Task<IActionResult> CheckIn(int id)
         {
@@ -402,7 +469,6 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // MÉTODO PARA CHECK-OUT
         [HttpPost]
         public async Task<IActionResult> CheckOut(int id)
         {
@@ -446,7 +512,6 @@ namespace SistemaReserva.Controllers
 
         private bool ReservaExists(int id)
         {
-            // Verifica si existe al menos una reserva con ese ID
             return _context.Reserva.Any(e => e.IdReserva == id);
         }
 
@@ -459,8 +524,6 @@ namespace SistemaReserva.Controllers
                 {
                     habitacion.Disponible = disponible;
                     _context.Update(habitacion);
-                    // No hacemos SaveChangesAsync aquí, dejamos que el método principal lo haga 
-                    // junto con el resto de los cambios para mantener la "Atomicidad".
                 }
             }
         } 
@@ -468,7 +531,7 @@ namespace SistemaReserva.Controllers
         private decimal CalcularPresupuesto(DateTime inicio, DateTime fin, decimal precioBase)
         {
             int noches = (fin - inicio).Days;
-            if (noches <= 0) noches = 1; // Se cobra al menos una noche
+            if (noches <= 0) noches = 1;
             return noches * precioBase;
         }   
     }

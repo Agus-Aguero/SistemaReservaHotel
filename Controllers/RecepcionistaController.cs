@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SistemaReserva.Models;
+using SistemaReserva.Models.Seguridad;
 using SistemaReserva.Patters;
 
 
@@ -30,38 +31,36 @@ namespace SistemaReserva.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Huesped model)
+        public async Task<IActionResult> Create(Recepcionista model) 
         {
-            // 1. Limpiamos validaciones de navegación si existen
             ModelState.Remove("Usuario");
             ModelState.Remove("Perfil");
 
             if (ModelState.IsValid)
             {
-                var perfilHuesped = await _context.Componente
-                    .FirstOrDefaultAsync(c => c.Nombre == "Huesped");
+                var perfilRecepcionista = await _context.Componente
+                    .FirstOrDefaultAsync(c => c.Nombre == "Recepcion"); 
 
-                if (perfilHuesped == null)
+                if (perfilRecepcionista == null)
                 {
-                    ModelState.AddModelError("", "Error: El perfil 'Huesped' no existe en la base de datos.");
+                    ModelState.AddModelError("", "Error: El perfil 'Recepcionista' no existe en la base de datos.");
                     return View(model);
                 }
 
                 var nuevoUsuario = new Usuario
                 {
-                    Email = model.Email,
-                    Password = Encriptador.GenerarHash("1234"),
-                    Perfil = perfilHuesped,
-                    PerfilId = perfilHuesped.IdComponente,
+                    Email = model.Email.Trim(), // FIX: Limpiar email
+                    Password = Encriptador.GenerarHash("1234"), // Generamos el hash limpio
+                    Grupos = new List<Familia> { (Familia)perfilRecepcionista },
                     PreguntaSeguridad = "Configurada por Admin",
                     RespuestaSeguridad = "1234"
                 };
+
                 _context.Usuario.Add(nuevoUsuario);
-                _context.Huesped.Add(model);
-                
+                _context.Recepcionista.Add(model); 
                 await _context.SaveChangesAsync();
                 
-                TempData["Success"] = "Huésped registrado. Puede ingresar con su email y clave 1234.";
+                TempData["Success"] = "Recepcionista registrado. Puede ingresar con su email y clave 1234.";
                 return RedirectToAction(nameof(Index));
             }
             return View(model);

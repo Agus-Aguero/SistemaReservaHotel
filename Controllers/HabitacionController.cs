@@ -3,6 +3,7 @@ using SistemaReserva.Models;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using SistemaReserva.Patters; // IMPORTANTE: Agregamos el using para usar la sesión
 
 namespace SistemaReserva.Controllers
 {
@@ -15,19 +16,46 @@ namespace SistemaReserva.Controllers
             _context = context;
         }
 
-        // GET: Habitacion/Create (Muestra el formulario vacío)
-       public IActionResult Create()
+        // GET: Habitacion/Index
+        public async Task<IActionResult> Index()
         {
-            // Esta línea busca los tipos en la base de datos y los prepara para el HTML
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+
+            if (!esAdmin && !esRecepcion)
+            {
+                TempData["Error"] = "No tienes permisos para acceder a este módulo.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            var habitaciones = await _context.Habitacion
+                .Include(h => h.Tipo) 
+                .ToListAsync()
+                .ContinueWith(t => t.Result.OrderBy(h => h.Numero));
+                
+            return View(habitaciones);
+        }
+
+        // GET: Habitacion/Create
+        public IActionResult Create()
+        {
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+            {
+                TempData["Error"] = "Acceso denegado. Solo los administradores pueden registrar habitaciones.";
+                return RedirectToAction(nameof(Index));
+            }
+
             ViewBag.IdTipoHabitacion = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre");
             return View();
         }
 
-        // POST: Habitacion/Create (Recibe los datos del HTML y guarda en SQL)
+        // POST: Habitacion/Create 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("IdHabitacion,Numero,Disponible,IdTipoHabitacion")] Habitacion habitacion)
         {
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) return RedirectToAction(nameof(Index));
+
             if (ModelState.IsValid)
             {
                 _context.Add(habitacion);
@@ -37,25 +65,18 @@ namespace SistemaReserva.Controllers
             return View(habitacion);
         }
 
-        public async Task<IActionResult> Index()
-        {
-            // El .Include(h => h.Tipo) es el que hace la unión en SQL
-            var habitaciones = await _context.Habitacion
-                .Include(h => h.Tipo) 
-                .ToListAsync();
-                
-            return View(habitaciones);
-        }
-
-     // GET: Habitacion/Edit/5
+        // GET: Habitacion/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+            if (!esAdmin && !esRecepcion) return RedirectToAction("Index", "Home");
+
             if (id == null) return NotFound();
 
             var habitacion = await _context.Habitacion.FindAsync(id);
             if (habitacion == null) return NotFound();
 
-            // Cargamos los tipos y seleccionamos el que ya tiene la habitación
             ViewBag.IdTipoHabitacion = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", habitacion.IdTipoHabitacion);
             
             return View(habitacion);
@@ -66,14 +87,18 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("IdHabitacion,Numero,Disponible,IdTipoHabitacion")] Habitacion habitacion)
         {
+            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+            if (!esAdmin && !esRecepcion) return RedirectToAction("Index", "Home");
+
             if (id != habitacion.IdHabitacion) return NotFound();
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(habitacion); // Marca el objeto como modificado
-                    await _context.SaveChangesAsync(); // C# guarda los cambios en SQL
+                    _context.Update(habitacion);
+                    await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -82,6 +107,7 @@ namespace SistemaReserva.Controllers
                     else
                         throw;
                 }
+                TempData["Success"] = "Habitación actualizada correctamente.";
                 return RedirectToAction(nameof(Index));
             }
             return View(habitacion);
@@ -90,6 +116,12 @@ namespace SistemaReserva.Controllers
         // GET: Habitacion/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+            {
+                TempData["Error"] = "Acceso denegado. Solo los administradores pueden eliminar habitaciones.";
+                return RedirectToAction(nameof(Index));
+            }
+
             if (id == null) return NotFound();
 
             var habitacion = await _context.Habitacion
@@ -106,12 +138,15 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) return RedirectToAction(nameof(Index));
+
             var habitacion = await _context.Habitacion.FindAsync(id);
             if (habitacion != null)
             {
                 _context.Habitacion.Remove(habitacion);
                 await _context.SaveChangesAsync();
             }
+            TempData["Success"] = "Habitación eliminada correctamente.";
             return RedirectToAction(nameof(Index));
         }
     }

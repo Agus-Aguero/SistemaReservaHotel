@@ -1,0 +1,112 @@
+@{
+    ViewData["Title"] = "Reporte de Ocupación";
+}
+
+<div class="container mt-4">
+    <h2 class="text-primary mb-4"><i class="fas fa-chart-pie me-2"></i> Reservas por Tipo de Habitación</h2>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Fecha Desde:</label>
+                    <input type="date" id="txtInicio" class="form-control" value="@DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Fecha Hasta:</label>
+                    <input type="date" id="txtFin" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" onclick="cargarGrafico()">
+                        <i class="fas fa-filter me-2"></i> Generar Gráfico
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <canvas id="miGraficoReservas" style="max-height: 400px;"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Variable global para poder destruir el gráfico antes de crear uno nuevo
+        let chartInstance = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarGrafico(); // Cargar al inicio
+        });
+
+        function cargarGrafico() {
+            const inicio = document.getElementById("txtInicio").value;
+            const fin = document.getElementById("txtFin").value;
+
+            // Llamada AJAX a tu Controlador
+            fetch(`/Reportes/DatosReservas?inicio=${inicio}&fin=${fin}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderizarGrafico(data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderizarGrafico(datos) {
+            const ctx = document.getElementById('miGraficoReservas').getContext('2d');
+            
+            // Extraemos etiquetas (Nombres) y valores (Cantidades) del JSON
+            const etiquetas = datos.map(d => d.etiqueta); // "Suite", "Twin"...
+            const valores = datos.map(d => d.valor);      // 5, 12, 3...
+
+            // Si ya existe un gráfico, lo destruimos para no encimar
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // Creamos el nuevo gráfico
+            chartInstance = new Chart(ctx, {
+                type: 'bar', // Probá cambiar 'bar' por 'pie' o 'doughnut' para ver tortas
+                data: {
+                    labels: etiquetas,
+                    datasets: [{
+                        label: 'Cantidad de Reservas',
+                        data: valores,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.6)', // Azul
+                            'rgba(255, 99, 132, 0.6)', // Rojo
+                            'rgba(255, 206, 86, 0.6)', // Amarillo
+                            'rgba(75, 192, 192, 0.6)', // Verde
+                            'rgba(153, 102, 255, 0.6)', // Violeta
+                            'rgba(255, 159, 64, 0.6)'  // Naranja
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1 // Para que no muestre decimales (no existe 1.5 reservas)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+}

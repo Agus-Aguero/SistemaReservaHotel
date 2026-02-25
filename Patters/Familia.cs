@@ -5,12 +5,14 @@ namespace SistemaReserva.Models.Seguridad
 {
     public class Familia : Componente
     {
-        // Esta lista es la que guarda las Patentes o incluso otras Familias
         private List<Componente> _hijos = new List<Componente>();
+        public virtual ICollection<Usuario> Usuarios { get; set; }
 
-        public Familia() { }
+        public Familia()
+        {
+            Usuarios = new List<Usuario>();
+        }
 
-        // Propiedad de navegación para Entity Framework
         public override List<Componente> Hijos 
         { 
             get => _hijos; 
@@ -26,12 +28,11 @@ namespace SistemaReserva.Models.Seguridad
             _hijos.Remove(c);
         }
 
-        // LA MAGIA: Aquí sucede la recursividad del T04
+        //Aquí sucede la recursividad
         public override bool TienePermiso(string nombre)
         {
             foreach (var hijo in _hijos)
             {
-                // Si el hijo se llama igual O si el hijo (que puede ser otra familia) lo tiene
                 if (hijo.Nombre == nombre || hijo.TienePermiso(nombre))
                 {
                     return true;
@@ -39,5 +40,6 @@ namespace SistemaReserva.Models.Seguridad
             }
             return false;
         }
+
     }
 }

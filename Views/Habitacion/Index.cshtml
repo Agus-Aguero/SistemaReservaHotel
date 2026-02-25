@@ -2,18 +2,25 @@
 
 @{
     ViewData["Title"] = "Listado de Habitaciones";
+    
+    bool esAdmin = SistemaReserva.Patters.SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
 }
 
 <h1>Gestión de Habitaciones</h1>
 
-<p>
-    <a asp-action="Create" class="btn btn-primary">Registrar Nueva Habitación</a>
-</p>
+@if (esAdmin)
+{
+    <p>
+        <a asp-action="Create" class="btn btn-primary">Registrar Nueva Habitación</a>
+    </p>
+}
 
-<table class="table table-striped border">
+<table class="table table-striped border mt-3">
     <thead class="thead-dark">
         <tr>
             <th>@Html.DisplayNameFor(model => model.Numero)</th>
+            <th>@Html.DisplayNameFor(model => model.Tipo)</th>
+            <th>Precio por Noche</th>
             <th>Estado</th>
             <th>Acciones</th>
         </tr>
@@ -23,10 +30,10 @@
         @foreach (var item in Model)
         {
             <tr>
-                <td>@item.Numero</td>
-                <td>@(item.Tipo?.Nombre ?? "Sin asignar")</td>
-                <td>@(item.Tipo?.PrecioBase.ToString("C2") ?? "$0.00")</td>
-                <td>
+                <td class="align-middle fw-bold">@item.Numero</td>
+                <td class="align-middle">@(item.Tipo?.Nombre ?? "Sin asignar")</td>
+                <td class="align-middle">@(item.Tipo?.PrecioBase.ToString("C2") ?? "$0.00")</td>
+                <td class="align-middle">
                     @if (item.Disponible)
                     {
                         <span class="badge" style="background-color: green; color: white; padding: 5px; border-radius: 5px;">Disponible</span>
@@ -36,9 +43,13 @@
                         <span class="badge" style="background-color: red; color: white; padding: 5px; border-radius: 5px;">Ocupada</span>
                     }
                 </td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@item.IdHabitacion" class="btn btn-warning btn-sm">Editar</a>
-                    <a asp-action="Delete" asp-route-id="@item.IdHabitacion" class="btn btn-danger btn-sm">Eliminar</a>
+                <td class="align-middle">
+                    <a asp-action="Edit" asp-route-id="@item.IdHabitacion" class="btn btn-warning btn-sm shadow-sm text-dark">Editar</a>
+                    
+                    @if (esAdmin)
+                    {
+                        <a asp-action="Delete" asp-route-id="@item.IdHabitacion" class="btn btn-danger btn-sm shadow-sm">Eliminar</a>
+                    }
                 </td>
             </tr>
         }

@@ -23,7 +23,6 @@ namespace SistemaReserva.Patters
         {
             _cotizacion = cotizacion;
         }
-
         public override string Formatear(decimal monto) {
             decimal totalDolar = monto / _cotizacion;
             return "USD " + totalDolar.ToString("N2");

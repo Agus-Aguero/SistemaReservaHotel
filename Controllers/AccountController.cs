@@ -27,12 +27,13 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(string email, string password)
         {
-            string hashIngresado = Encriptador.GenerarHash(password);
+            string cleanPassword = password?.Trim();
+            string hashIngresado = Encriptador.GenerarHash(cleanPassword);
 
             // 1. Buscamos el usuario por credenciales
             var usuario = await _context.Usuario
-                .Include(u => u.Perfil) 
-                .FirstOrDefaultAsync(u => u.Email == email && u.Password == hashIngresado);
+                 .Include(u => u.Grupos) // Cargamos las familias a las que pertenece el usuario 
+                 .FirstOrDefaultAsync(u => u.Email == email.Trim() && u.Password == hashIngresado);
 
             if (usuario != null)
             {
@@ -47,15 +48,16 @@ namespace SistemaReserva.Controllers
                     ViewBag.Error = "Tu cuenta de acceso ha sido desactivada. Contacta al administrador.";
                     return View();
                 }
-                // ----------------------------------
 
                 // LLAMADA CLAVE: Cargamos recursivamente toda la estructura del Composite
-                if (usuario.Perfil != null)
-                {
-                    await CargarHijosRecursivo(usuario.Perfil);
+                if (usuario.Grupos != null && usuario.Grupos.Any())
+                {   foreach (var grupo in usuario.Grupos)
+                    {
+                        await CargarHijosRecursivo(grupo);
+                    }
                 }
 
-                SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, usuario.Perfil);
+                SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, usuario.Grupos.FirstOrDefault());
                 
                 var tienePerfil = await _context.Persona.AnyAsync(p => p.Email == usuario.Email);
 
@@ -111,7 +113,7 @@ namespace SistemaReserva.Controllers
                 {
                     Email = model.Email,
                     Password = Encriptador.GenerarHash(model.Password), // Encriptamos la clave
-                    Perfil = perfilHuesped, // Asignamos el objeto Familia "Huesped"
+                    Grupos = new List<Familia> { (Familia)perfilHuesped }, // Asignamos el objeto Familia "Huesped"
                     PreguntaSeguridad = model.PreguntaSeguridad,
                     RespuestaSeguridad = model.RespuestaSeguridad
                 };
@@ -335,7 +337,6 @@ namespace SistemaReserva.Controllers
         // GET: Account/Logout
         public IActionResult Logout()
         {
-            // LOG OUT: Limpiar el Singleton
             SesionUsuario.Instancia.Logout();
             
             return RedirectToAction("Login");
