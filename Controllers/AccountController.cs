@@ -32,12 +32,11 @@ namespace SistemaReserva.Controllers
 
             // 1. Buscamos el usuario por credenciales
             var usuario = await _context.Usuario
-                 .Include(u => u.Grupos) // Cargamos las familias a las que pertenece el usuario 
-                 .FirstOrDefaultAsync(u => u.Email == email.Trim() && u.Password == hashIngresado);
+                .Include(u => u.Grupos) // Cargamos las familias a las que pertenece el usuario 
+                .FirstOrDefaultAsync(u => u.Email == email.Trim() && u.Password == hashIngresado);
 
             if (usuario != null)
             {
-                // --- NUEVA VALIDACIÓN DE ESTADO ---
                 // Buscamos si existe un registro en Recepcionista para este email
                 var staff = await _context.Recepcionista
                     .FirstOrDefaultAsync(r => r.Email == usuario.Email);
@@ -49,15 +48,23 @@ namespace SistemaReserva.Controllers
                     return View();
                 }
 
-                // LLAMADA CLAVE: Cargamos recursivamente toda la estructura del Composite
+                // COMPOSITE: Creamos el Súper Grupo temporal
+                var perfilConsolidado = new Familia { Nombre = "Accesos Consolidados" };
+
                 if (usuario.Grupos != null && usuario.Grupos.Any())
-                {   foreach (var grupo in usuario.Grupos)
+                {   
+                    foreach (var grupo in usuario.Grupos)
                     {
+                        // Cargamos la estructura de este grupo desde la base de datos
                         await CargarHijosRecursivo(grupo);
+                        
+                        // Le "colgamos" este grupo al Súper Grupo
+                        perfilConsolidado.Agregar(grupo);
                     }
                 }
 
-                SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, usuario.Grupos.FirstOrDefault());
+                // Le pasamos al Singleton el Súper Grupo que contiene TODOS los roles
+                SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, perfilConsolidado);
                 
                 var tienePerfil = await _context.Persona.AnyAsync(p => p.Email == usuario.Email);
 

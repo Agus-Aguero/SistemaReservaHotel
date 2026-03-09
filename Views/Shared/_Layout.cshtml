@@ -67,10 +67,12 @@
                                     @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                                     {
                                         <li><a class="dropdown-item" asp-controller="Recepcionista" asp-action="Index">Recepcionistas</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Grupo" asp-action="Index">Gestión de Grupos</a></li>
                                     }
                                 </ul>
                             </li>
                         }
+                        
 
                         @* 2. Infraestructura (Admin y Recepción) *@
                         @if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones") || SesionUsuario.Instancia.TienePermiso("Recepcion"))
@@ -121,6 +123,7 @@
                                     📊 Reportes
                                 </a>
                             </li>
+                            <li><a class="dropdown-item" asp-controller="Usuario" asp-action="Index">Auditoría de Usuarios</a></li>
                         }
 
                         @* 4. MI CUENTA (Lado derecho) *@
