@@ -5,6 +5,8 @@ namespace SistemaReserva.Models
 {
     public class Reserva
     {
+        public virtual Cobro Cobro { get; set; }
+        
         [Key]
         public int IdReserva { get; set; }
 

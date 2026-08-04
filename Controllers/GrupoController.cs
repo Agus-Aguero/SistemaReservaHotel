@@ -34,8 +34,16 @@ namespace SistemaReserva.Controllers
         {
             if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) return RedirectToAction("Index", "Home");
 
-            // Pasamos a la vista todas las Patentes (Permisos individuales) para armar los Checkboxes
-            ViewBag.PermisosDisponibles = await _context.Componente.OfType<Patente>().ToListAsync();
+            // Pasamos a la vista todas las Patentes, filtrando las que ya no usamos operativamente
+            ViewBag.PermisosDisponibles = await _context.Componente
+            .OfType<Patente>()
+            .Where(p => p.Nombre != "CheckIn" 
+                    && p.Nombre != "CheckOut"
+                    && p.Nombre != "Crear Reserva"
+                    && p.Nombre != "Modificar Reserva"
+                    && p.Nombre != "Cancelar Reserva")
+            .ToListAsync();
+                
             return View();
         }
 
@@ -75,7 +83,7 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: Grupo/Edit/5
+       // GET: Grupo/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) return RedirectToAction("Index", "Home");
@@ -88,7 +96,16 @@ namespace SistemaReserva.Controllers
 
             if (grupo == null) return NotFound();
 
-            ViewBag.PermisosDisponibles = await _context.Componente.OfType<Patente>().ToListAsync();
+            // Filtramos TODOS los permisos que ya no usamos operativamente para limpiar la vista
+            ViewBag.PermisosDisponibles = await _context.Componente
+                .OfType<Patente>()
+                .Where(p => p.Nombre != "CheckIn" 
+                        && p.Nombre != "CheckOut"
+                        && p.Nombre != "Crear Reserva"
+                        && p.Nombre != "Modificar Reserva"
+                        && p.Nombre != "Cancelar Reserva")
+                .ToListAsync();
+                
             return View(grupo);
         }
 
@@ -130,7 +147,7 @@ namespace SistemaReserva.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // POST: Grupo/Delete/5 (Lo hacemos directo por POST para más seguridad)
+        // POST: Grupo/Delete/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)

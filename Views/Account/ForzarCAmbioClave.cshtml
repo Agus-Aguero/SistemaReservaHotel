@@ -1,0 +1,60 @@
+@model ForzarCambioClaveViewModel
+@* Si pusiste la clase en otra carpeta, recordá agregar el @using TuProyecto.ViewModels arriba *@
+
+@{
+    ViewData["Title"] = "Cambio de Contraseña Requerido";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h4 class="mb-0"><i class="fas fa-shield-alt"></i> Seguridad de la Cuenta</h4>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="alert alert-warning">
+                        <strong>¡Atención!</strong> Por motivos de seguridad, debes cambiar la contraseña temporal asignada por recepción antes de continuar.
+                    </div>
+
+                    <form asp-action="ForzarCambioClave" asp-controller="Account" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="NuevaPassword" class="control-label fw-bold"></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-lock text-muted"></i></span>
+                                <input asp-for="NuevaPassword" class="form-control" placeholder="Ej: Hotel!2026" />
+                            </div>
+                            <span asp-validation-for="NuevaPassword" class="text-danger"></span>
+                            <small class="text-muted d-block mt-1">
+                                Debe incluir al menos 1 mayúscula, 1 número y 1 carácter especial (ej: @@, $, !).
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label asp-for="ConfirmarPassword" class="control-label fw-bold"></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-check-circle text-muted"></i></span>
+                                <input asp-for="ConfirmarPassword" class="form-control" placeholder="Repita la nueva contraseña" />
+                            </div>
+                            <span asp-validation-for="ConfirmarPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                                Actualizar y Continuar <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </form>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

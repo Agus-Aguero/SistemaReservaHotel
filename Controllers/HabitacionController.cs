@@ -20,9 +20,10 @@ namespace SistemaReserva.Controllers
         public async Task<IActionResult> Index()
         {
             bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
-            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes");
+            bool manejaInfraestructura = SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones");
 
-            if (!esAdmin && !esRecepcion)
+            if (!esAdmin && !esRecepcion && !manejaInfraestructura)
             {
                 TempData["Error"] = "No tienes permisos para acceder a este módulo.";
                 return RedirectToAction("Index", "Home");
@@ -69,7 +70,7 @@ namespace SistemaReserva.Controllers
         public async Task<IActionResult> Edit(int? id)
         {
             bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
-            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes");
             if (!esAdmin && !esRecepcion) return RedirectToAction("Index", "Home");
 
             if (id == null) return NotFound();
@@ -88,7 +89,7 @@ namespace SistemaReserva.Controllers
         public async Task<IActionResult> Edit(int id, [Bind("IdHabitacion,Numero,Disponible,IdTipoHabitacion")] Habitacion habitacion)
         {
             bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
-            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Recepcion");
+            bool esRecepcion = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes");
             if (!esAdmin && !esRecepcion) return RedirectToAction("Index", "Home");
 
             if (id != habitacion.IdHabitacion) return NotFound();

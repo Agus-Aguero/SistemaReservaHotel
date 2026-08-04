@@ -16,45 +16,57 @@ namespace SistemaReserva.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> Index(string moneda = "ARS")
+       public async Task<IActionResult> Index(string moneda = "ARS")
         {
-            // 1. VALIDACIÓN DE SEGURIDAD 
-            if (!SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
+            // 1. VALIDACIÓN: Sesión iniciada
+            if (string.IsNullOrEmpty(SesionUsuario.Instancia.Email))
             {
-                TempData["Error"] = "No tienes permisos para acceder a la gestión de reservas.";
+                TempData["Error"] = "Debes iniciar sesión para acceder a tus reservas.";
                 return RedirectToAction("Index", "Home");
             }
 
-            // 2. PREPARAMOS LA CONSULTA
+            // 2. NUEVOS CANDADOS DE AUTORIZACIÓN POSITIVA
+            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                        SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") ||
+                        SesionUsuario.Instancia.TienePermiso("Ver Reservas") ||
+                        SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones"); 
+
+            bool esHuesped = SesionUsuario.Instancia.TienePermiso("Acceso Huesped");
+
+            // Si no tiene NINGUNO de los perfiles válidos, lo frenamos
+            if (!esStaff && !esHuesped)
+            {
+                TempData["Error"] = "Tu perfil no tiene los permisos necesarios para ver las reservas.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            // 3. PREPARAMOS LA CONSULTA
             var query = _context.Reserva
                 .Include(r => r.Huesped)
                 .Include(r => r.TipoHabitacion)
                 .Include(r => r.Habitacion)
+                .Include(r => r.Cobro)
                 .AsQueryable();
 
-            // 3. FILTRO DE PRIVACIDAD ACTUALIZADO:
-            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
-                        SesionUsuario.Instancia.TienePermiso("Recepcion");
-
-            if (!esStaff)
+            // 4. FILTRO DE PRIVACIDAD ACTUALIZADO
+            if (esHuesped && !esStaff)
             {
-                // Si es un Huésped (no es staff), solo traemos sus reservas.
+                // Es un Huésped puro: solo traemos sus reservas.
                 var emailLogueado = SesionUsuario.Instancia.Email;
                 query = query.Where(r => r.Huesped.Email == emailLogueado);
             }
-            else 
+            else if (esStaff) 
             {
-                // Si es Staff, ordenamos para que lo más reciente aparezca primero
+                // Es Staff: ve todo, ordenado por fecha
                 query = query.OrderByDescending(r => r.FechaInicio);
             }
 
-            // 4. EJECUTAMOS LA CONSULTA FILTRADA
+            // 5. EJECUTAMOS LA CONSULTA FILTRADA
             var reservas = await query.ToListAsync();
 
-            // 5. LÓGICA DE MONEDA
+            // 6. LÓGICA DE MONEDA
             ViewBag.Moneda = moneda;
 
-            // 5.1. Componente Concreto Base
             IPrecioDisplay display = new PrecioPesosDisplay();
 
             if (moneda == "USD") 
@@ -66,7 +78,6 @@ namespace SistemaReserva.Controllers
                 display = new PrecioDolarDecorator(display, cotizacion);
             }
 
-            // 5.3. Pasamos el decorador a la vista
             ViewBag.Display = display;
 
             return View(reservas);
@@ -75,36 +86,45 @@ namespace SistemaReserva.Controllers
         // GET: Reserva/Create
         public async Task<IActionResult> Create()
         {
-            // 1. OBTENCIÓN DE DATOS DEL USUARIO Y PERMISOS
+            //  1. CANDADO DE AUTORIZACIÓN POSITIVA
+            bool esStaffOperativo = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                                    SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+                                    
+            bool esHuesped = SesionUsuario.Instancia.TienePermiso("Acceso Huesped");
+
+            // Si no es empleado operativo Y TAMPOCO es un huésped válido, lo frenamos en seco.
+            // (Esto bloquea automáticamente a los Auditores y a roles futuros sin acceso).
+            if (!esStaffOperativo && !esHuesped)
+            {
+                TempData["Error"] = "Acceso Denegado: Tu perfil no tiene permisos para crear reservas.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2. OBTENCIÓN DE DATOS DEL USUARIO Y PERMISOS
             var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
-            
-            // Aquí ya incluiste correctamente al Recepcionista
-            bool esAdmin = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
-                        SesionUsuario.Instancia.TienePermiso("Recepcion");
 
             var personaLogueada = await _context.Persona
                 .FirstOrDefaultAsync(p => p.Email.ToLower() == emailLogueado);
 
-            ViewBag.TienePerfil = esAdmin || (personaLogueada != null);
+            ViewBag.TienePerfil = esStaffOperativo || (personaLogueada != null);
 
-            // 2. DEFINICIÓN DE CONSULTA DE HUÉSPEDES
+            // 3. DEFINICIÓN DE CONSULTA DE HUÉSPEDES
             IQueryable<Huesped> consulta = _context.Huesped;
 
-            // CAMBIO CLAVE: Si es Admin o Recepcionista, entra al ELSE y ve a todos.
-            if (!esAdmin)
+            if (esHuesped && !esStaffOperativo)
             {
-                // Solo el Huésped común entra aquí y se filtra a sí mismo
+                // El Huésped validado entra aquí y solo se ve a sí mismo en el combo desplegable
                 consulta = consulta.Where(h => h.Email.ToLower() == emailLogueado);
             }
             else 
             {
-                // Admin y Recepcionista ven todo el listado
+                // Los empleados operativos ven todo el listado alfabéticamente
                 consulta = consulta.OrderBy(h => h.Apellido).ThenBy(h => h.Nombre);
             }
 
             var listaHuespedes = await consulta.ToListAsync();
 
-            // 3. CARGA DE DATOS PARA EL PRESUPUESTO DINÁMICO
+            // 4. CARGA DE DATOS PARA EL PRESUPUESTO DINÁMICO
             var tiposHabitacion = await _context.TipoHabitacion.ToListAsync();
 
             var preciosHabitaciones = tiposHabitacion.Select(t => new { 
@@ -117,7 +137,7 @@ namespace SistemaReserva.Controllers
             var service = new DolarService();
             ViewBag.Cotizacion = await service.ObtenerCotizaciónBlue();
 
-            // 4. DATOS PARA LOS SELECTS DE LA VISTA
+            // 5. DATOS PARA LOS SELECTS DE LA VISTA
             ViewData["IdPersona"] = new SelectList(listaHuespedes.Select(h => new {
                 h.IdPersona,
                 NombreCompleto = $"{h.Apellido}, {h.Nombre}"
@@ -135,13 +155,46 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Reserva reserva)
         {
-            // 1. Asignamos el usuario desde la sesión
+            //  1. EVALUACIÓN DE PERMISOS
+            bool esStaffOperativo = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                                    SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+                                    
+            bool esHuesped = SesionUsuario.Instancia.TienePermiso("Acceso Huesped");
+
+            // Si logró bypassear la vista y manda un POST sin permisos, rebota.
+            if (!esStaffOperativo && !esHuesped)
+            {
+                TempData["Error"] = "Acceso Denegado: No tienes permisos para crear reservas.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2. LÓGICA EXCLUSIVA DEL HUÉSPED
+            if (esHuesped && !esStaffOperativo) 
+            {
+                var emailLogueado = SesionUsuario.Instancia.Email?.Trim().ToLower();
+                var personaLogueada = await _context.Persona.FirstOrDefaultAsync(p => p.Email.ToLower() == emailLogueado);
+
+                // Si por algún motivo entró alguien que no tiene sus datos cargados, lo frenamos
+                if (personaLogueada == null)
+                {
+                    TempData["Error"] = "Error: No tienes un perfil de huésped asociado para reservar.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // CANDADO MAESTRO: Como es Huésped validado, la reserva se hace obligatoriamente a su nombre
+                reserva.IdPersona = personaLogueada.IdPersona;
+                ModelState.Remove("IdPersona");
+            }
+
+            // 3. Asignamos el usuario desde la sesión
             reserva.IdUsuario = SesionUsuario.Instancia.IdUsuario;
 
-            // 2. Limpieza para validación manual
+            // 4. Limpieza para validación manual
             ModelState.Remove("Usuario");
             ModelState.Remove("Huesped");
             ModelState.Remove("TipoHabitacion");
+            ModelState.Remove("Habitacion");
+            ModelState.Remove("Cobro");
 
             if (reserva.FechaFin < reserva.FechaInicio)
             {
@@ -202,7 +255,7 @@ namespace SistemaReserva.Controllers
 
                 _context.Add(reserva);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction("Pagar", "Cobro", new { idReserva = reserva.IdReserva });
             }
 
             await RecargarDatosVista(reserva);
@@ -255,44 +308,57 @@ namespace SistemaReserva.Controllers
         // GET: Reserva/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            bool puedeModificar = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                                SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+
+            if (!puedeModificar) 
+            {
+                TempData["Error"] = "Acceso Denegado: Tu perfil es de solo lectura y no permite modificaciones.";
+                return RedirectToAction(nameof(Index));
+            }
             if (id == null) return NotFound();
 
             // 1. Traemos la reserva actual
             var reserva = await _context.Reserva
-                .Include(r => r.TipoHabitacion) // Ojo: Verifica si tu propiedad se llama 'Tipo' o 'TipoHabitacion' en el modelo
+                .Include(r => r.TipoHabitacion)
                 .Include(r => r.Huesped)
                 .FirstOrDefaultAsync(m => m.IdReserva == id);
 
             if (reserva == null) return NotFound();
 
             // 2. LÓGICA DE DISPONIBILIDAD REAL (POR FECHAS)
-            // Buscamos los IDs de habitaciones que YA están ocupadas por OTROS en esas fechas
             var idsHabitacionesOcupadas = await _context.Reserva
-                .Where(r => r.IdReserva != id) // Importante: Ignoramos la reserva actual (no compite consigo misma)
-                .Where(r => r.IdHabitacion != null) // Solo reservas que ya tienen cuarto asignado
-                .Where(r => r.Estado != "Cancelada") // Ignoramos las canceladas
-                .Where(r => r.FechaInicio < reserva.FechaFin && r.FechaFin > reserva.FechaInicio) // Lógica de solapamiento de fechas
+                .Where(r => r.IdReserva != id) 
+                .Where(r => r.IdHabitacion != null) 
+                .Where(r => r.Estado != "Cancelada") 
+                .Where(r => r.FechaInicio < reserva.FechaFin && r.FechaFin > reserva.FechaInicio) 
                 .Select(r => r.IdHabitacion.Value)
                 .ToListAsync();
 
-            // 3. FILTRADO FINAL
-            // Traemos las habitaciones que:
-            // A. Son del mismo TIPO que la reserva
-            // B. No están en la lista de ocupadas (idsHabitacionesOcupadas)
-            // C. Están operativas (h.Disponible = true) O es la habitación que ya tiene esta reserva
+            // AGREGAMOS EL POOL DE COMPATIBILIDAD QUE TENÍAS EN EL CREATE
+            List<int> idsCompatibles = new List<int> { reserva.IdTipoHabitacion };
+            if (reserva.IdTipoHabitacion == 1 || reserva.IdTipoHabitacion == 2)
+            {
+                idsCompatibles = new List<int> { 1, 2 }; // Pool Matrimonial/Twin
+            }
+            else if (reserva.IdTipoHabitacion == 4 || reserva.IdTipoHabitacion == 5)
+            {
+                idsCompatibles = new List<int> { 4, 5 }; // Pool Cuádruples
+            }
+
+            // 3. FILTRADO FINAL CON EL POOL
             var habitacionesDisponibles = await _context.Habitacion
-                .Where(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion)
-                .Where(h => !idsHabitacionesOcupadas.Contains(h.IdHabitacion)) // ¡Aquí está la magia!
+                .Where(h => idsCompatibles.Contains(h.IdTipoHabitacion))
+                .Where(h => !idsHabitacionesOcupadas.Contains(h.IdHabitacion)) 
                 .Where(h => h.Disponible || h.IdHabitacion == reserva.IdHabitacion)
                 .Select(h => new 
                 {
                     IdHabitacion = h.IdHabitacion,
-                    Numero = $"Habitación {h.Numero}" // Formato bonito para el DropDown
+                    Numero = $"Habitación {h.Numero}" 
                 })
                 .ToListAsync();
 
             // 4. Cargamos los ViewData
-            // Si la lista está vacía, agregamos una opción manual para avisar visualmente
             if (!habitacionesDisponibles.Any())
             {
                 habitacionesDisponibles.Add(new { IdHabitacion = 0, Numero = "No hay habitaciones libres en estas fechas" });
@@ -300,7 +366,7 @@ namespace SistemaReserva.Controllers
 
             ViewData["IdHabitacion"] = new SelectList(habitacionesDisponibles, "IdHabitacion", "Numero", reserva.IdHabitacion);
             
-            // Mantenemos los otros selects por si acaso, aunque en Edit generalmente solo tocamos la habitación
+            // Mantenemos los otros selects
             ViewData["IdPersona"] = new SelectList(_context.Persona, "IdPersona", "Apellido", reserva.IdPersona);
             ViewData["IdTipoHabitacion"] = new SelectList(_context.TipoHabitacion, "IdTipoHabitacion", "Nombre", reserva.IdTipoHabitacion);
 
@@ -312,6 +378,16 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Reserva reserva)
         {
+            // 0. CANDADO DE SEGURIDAD ABSOLUTA
+            bool puedeModificar = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                                SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+
+            if (!puedeModificar) 
+            {
+                TempData["Error"] = "Acceso Denegado: Tu perfil es de solo lectura y no permite modificaciones.";
+                return RedirectToAction(nameof(Index));
+            }
+
             if (id != reserva.IdReserva) return NotFound();
 
             // 1. LIMPIEZA DE VALIDACIONES
@@ -319,6 +395,7 @@ namespace SistemaReserva.Controllers
             ModelState.Remove("Usuario");
             ModelState.Remove("TipoHabitacion");
             ModelState.Remove("Habitacion");
+            ModelState.Remove("Cobro");
 
             if (ModelState.IsValid)
             {
@@ -333,24 +410,37 @@ namespace SistemaReserva.Controllers
                         reserva.IdUsuario = reservaOriginal.IdUsuario;
                         // Importante: Si la vista no envía IdPersona, mantener el original
                         if (reserva.IdPersona == 0) reserva.IdPersona = reservaOriginal.IdPersona;
+                        
+                        // Mantenemos el estado original para no alterarlo sin querer
+                        reserva.Estado = reservaOriginal.Estado;
                     }
 
-                    // 3. VALIDACIÓN DE DISPONIBILIDAD DEL POOL (La que ya tenías)
+                    // 3. VALIDACIÓN DE DISPONIBILIDAD DEL POOL
+                    List<int> idsCompatibles = new List<int> { reserva.IdTipoHabitacion };
+
+                    if (reserva.IdTipoHabitacion == 1 || reserva.IdTipoHabitacion == 2)
+                    {
+                        idsCompatibles = new List<int> { 1, 2 }; // Pool Matrimonial/Twin
+                    }
+                    else if (reserva.IdTipoHabitacion == 4 || reserva.IdTipoHabitacion == 5)
+                    {
+                        idsCompatibles = new List<int> { 4, 5 }; // Pool Cuádruples
+                    }
+
                     var totalHabitaciones = await _context.Habitacion
-                        .CountAsync(h => h.IdTipoHabitacion == reserva.IdTipoHabitacion);
+                        .CountAsync(h => idsCompatibles.Contains(h.IdTipoHabitacion));
 
                     var reservasOcupadas = await _context.Reserva
-                        .CountAsync(r => r.IdTipoHabitacion == reserva.IdTipoHabitacion &&
-                                            r.IdReserva != id &&
-                                            r.Estado != "Cancelada" &&
-                                            reserva.FechaInicio < r.FechaFin && 
-                                            reserva.FechaFin > r.FechaInicio);
+                        .CountAsync(r => idsCompatibles.Contains(r.IdTipoHabitacion) &&
+                                        r.IdReserva != id &&
+                                        r.Estado != "Cancelada" &&
+                                        reserva.FechaInicio < r.FechaFin && 
+                                        reserva.FechaFin > r.FechaInicio);
 
                     if (reservasOcupadas >= totalHabitaciones)
                     {
                         var tipo = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
                         ModelState.AddModelError("", $"No hay cupo para el tipo '{tipo?.Nombre}' en esas fechas.");
-                        // OJO: Aquí debes llamar a tu método de recarga, pero corregido para que filtre habitaciones
                         await RecargarCombosEditFiltrado(reserva); 
                         return View(reserva);
                     }
@@ -371,6 +461,47 @@ namespace SistemaReserva.Controllers
                             await RecargarCombosEditFiltrado(reserva);
                             return View(reserva);
                         }
+                        
+                        // OPCIONAL: Si estaba en "Pendiente" y le asignamos cuarto, la pasamos a "Confirmada"
+                        if (reserva.Estado == "Pendiente") 
+                        {
+                            reserva.Estado = "Confirmada";
+                        }
+                    }
+
+                    // NUEVO: INYECCIÓN MANUAL PARA LA AUDITORÍA DE HABITACIÓN
+                    // Comparamos si le asignaron una habitación que antes no tenía, o si se la cambiaron.
+                    if (reservaOriginal != null && reserva.IdHabitacion != null && reserva.IdHabitacion != reservaOriginal.IdHabitacion)
+                    {
+                        // 1. Buscamos el NÚMERO REAL de la habitación vieja (si tenía)
+                        string habVieja = "Sin asignar";
+                        if (reservaOriginal.IdHabitacion != null)
+                        {
+                            var cuartoViejo = await _context.Habitacion.FindAsync(reservaOriginal.IdHabitacion);
+                            if (cuartoViejo != null) habVieja = cuartoViejo.Numero.ToString();
+                        }
+
+                        // 2. Buscamos el NÚMERO REAL de la habitación nueva
+                        var cuartoNuevo = await _context.Habitacion.FindAsync(reserva.IdHabitacion);
+                        string habNueva = cuartoNuevo != null ? cuartoNuevo.Numero.ToString() : reserva.IdHabitacion.ToString();
+
+                        // 3. Armamos el JSON para la vista
+                        string jsonViejo = "{\"IdHabitacion\": \"" + habVieja + "\"}";
+                        string jsonNuevo = "{\"IdHabitacion\": \"" + habNueva + "\"}";
+
+                        string usuarioActual = SesionUsuario.Instancia.Email ?? "Recepcionista";
+
+                        var auditoriaHabitacion = new AuditoriaReserva 
+                        {
+                            IdReserva = reserva.IdReserva,
+                            EmailUsuario = usuarioActual,
+                            FechaHora = DateTime.Now,
+                            TipoOperacion = "MODIFICACIÓN",
+                            ValoresOriginales = jsonViejo,
+                            ValoresNuevos = jsonNuevo
+                        };
+                        
+                        _context.Add(auditoriaHabitacion); 
                     }
 
                     // 5. RECALCULAR PRECIO Y GUARDAR
@@ -381,6 +512,8 @@ namespace SistemaReserva.Controllers
 
                     _context.Update(reserva);
                     await _context.SaveChangesAsync();
+                    
+                    TempData["Success"] = "¡Reserva actualizada correctamente!";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -391,6 +524,12 @@ namespace SistemaReserva.Controllers
             }
             
             await RecargarCombosEditFiltrado(reserva); 
+            if (reserva.Huesped == null) 
+                reserva.Huesped = await _context.Huesped.FindAsync(reserva.IdPersona);
+
+            if (reserva.TipoHabitacion == null) 
+                reserva.TipoHabitacion = await _context.TipoHabitacion.FindAsync(reserva.IdTipoHabitacion);
+
             return View(reserva);
         }
 
@@ -427,6 +566,15 @@ namespace SistemaReserva.Controllers
         // GET: Reserva/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
+            bool puedeModificar = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                      SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+
+            if (!puedeModificar) 
+            {
+                TempData["Error"] = "Acceso Denegado: Tu perfil es de solo lectura y no permite modificaciones.";
+                return RedirectToAction(nameof(Index));
+            }
+
             if (id == null) return NotFound();
 
             var reserva = await _context.Reserva
@@ -444,6 +592,14 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            bool puedeModificar = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                      SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+
+            if (!puedeModificar) 
+            {
+                TempData["Error"] = "Acceso Denegado: Tu perfil es de solo lectura y no permite modificaciones.";
+                return RedirectToAction(nameof(Index));
+            }
             var reserva = await _context.Reserva.FindAsync(id);
             if (reserva != null)
             {
@@ -455,6 +611,7 @@ namespace SistemaReserva.Controllers
             }
             return RedirectToAction(nameof(Index));
         }
+
 
         [HttpPost]
         public async Task<IActionResult> CheckIn(int id)
@@ -489,24 +646,38 @@ namespace SistemaReserva.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancel(int id)
         {
-            // 1. Verificación del Composite
-            if (!SesionUsuario.Instancia.TienePermiso("Cancelar Reserva")) return Forbid();
-
             var reserva = await _context.Reserva.FindAsync(id);
             if (reserva == null) return NotFound();
 
-            // 2. Verificación de Propiedad (Solo el dueño o un Admin pueden cancelar)
-            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") && 
-                reserva.IdUsuario != SesionUsuario.Instancia.IdUsuario)
+            // 1. REGLA DE SEGURIDAD ACTUALIZADA
+            // Usamos las patentes operativas maestras en lugar del permiso individual
+            bool tienePermisoStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") || 
+                                    SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios");
+                                    
+            // Mantenemos esto por si en el futuro querés que el huésped cancele sus propias reservas
+            bool esDueñoDeLaReserva = reserva.IdUsuario == SesionUsuario.Instancia.IdUsuario;
+
+            if (!tienePermisoStaff && !esDueñoDeLaReserva)
             {
-                return Forbid();
+                TempData["Error"] = "Acceso denegado: No tienes permisos para cancelar esta reserva.";
+                return RedirectToAction(nameof(Index));
             }
 
-            // 3. Ejecución
+            // 2. REGLA DE ESTADO: ¿Se puede cancelar?
+            if (reserva.Estado != "Pendiente" && reserva.Estado != "Confirmada")
+            {
+                TempData["Error"] = "Solo se pueden cancelar reservas que estén Pendientes o Confirmadas.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 3. EJECUCIÓN: Cancelamos y liberamos la habitación
             reserva.Estado = "Cancelada";
+            reserva.IdHabitacion = null; 
+
+            _context.Update(reserva);
             await _context.SaveChangesAsync();
 
-            TempData["Mensaje"] = "Reserva cancelada correctamente.";
+            TempData["Success"] = "Reserva #" + id + " cancelada correctamente. La habitación ha sido liberada.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -534,5 +705,6 @@ namespace SistemaReserva.Controllers
             if (noches <= 0) noches = 1;
             return noches * precioBase;
         }   
+
     }
 }

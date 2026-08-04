@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SistemaReserva.Models; // Ajusta el namespace según tu proyecto
-using SistemaReserva.Patters; // Para SesionUsuario
+using SistemaReserva.Models;
+using SistemaReserva.Patters;
 
 namespace SistemaReserva.Controllers
 {
@@ -17,8 +17,8 @@ namespace SistemaReserva.Controllers
         // 1. La Vista Principal con los filtros
         public IActionResult Index()
         {
-            // Validamos permisos (Solo Admin o Gerencia)
-            if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios")) 
+            // Validamos permisos
+            if (!SesionUsuario.Instancia.TienePermiso("Ver Reportes"))
             {
                 return RedirectToAction("Index", "Home");
             }
@@ -45,6 +45,81 @@ namespace SistemaReserva.Controllers
                 .ToListAsync();
 
             return Json(datos);
+        }
+
+        [HttpGet]
+        // 1. Agregamos el parámetro 'moneda' por defecto en "ARS"
+        public IActionResult Recaudacion(DateTime? fechaDesde, DateTime? fechaHasta, string moneda = "ARS")
+        {
+            // Configuramos las fechas por defecto (El mes actual) si vienen vacías
+            DateTime desde = fechaDesde ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            DateTime hasta = fechaHasta ?? DateTime.Now.Date;
+
+            // Guardamos las variables en el ViewBag para el HTML
+            ViewBag.FechaDesde = desde.ToString("yyyy-MM-dd");
+            ViewBag.FechaHasta = hasta.ToString("yyyy-MM-dd");
+            ViewBag.MonedaActual = moneda;
+
+            // Armamos la consulta base filtrando solo los aprobados
+            var query = _context.Cobro.Where(c => c.Estado == "Aprobado").AsQueryable();
+
+            // Aplicamos el filtro de fechas
+            query = query.Where(c => c.FechaCobro >= desde && c.FechaCobro < hasta.AddDays(1));
+
+            if (moneda == "ARS")
+            {
+                // Usamos IsNullOrEmpty para atrapar los NULL y también los strings vacíos ("") de la migración
+                query = query.Where(c => c.MonedaPago == "ARS" || string.IsNullOrEmpty(c.MonedaPago));
+            }
+            else
+            {
+                // Si buscamos dólares, traemos estrictamente los "USD"
+                query = query.Where(c => c.MonedaPago == moneda);
+            }
+
+            // Obtenemos el detalle completo para la tabla (antes de agrupar)
+            ViewBag.DetalleCobros = query
+                .Include(c => c.Reserva)          
+                    .ThenInclude(r => r.Huesped)
+                .OrderByDescending(c => c.FechaCobro)
+                .ToList();
+
+            // 3. NUEVO: Agrupamos y sumamos dependiendo de la moneda
+            List<RecaudacionViewModel> datosRecaudacion;
+
+            if (moneda == "USD")
+            {
+                datosRecaudacion = query
+                    .GroupBy(c => c.MetodoPago)
+                    .Select(grupo => new RecaudacionViewModel
+                    {
+                        MetodoPago = grupo.Key,
+                        // Si es USD, sumamos la columna de dólares (usamos ?? 0 por si hay nulos viejos)
+                        TotalRecaudado = grupo.Sum(c => c.MontoEnDolares ?? 0), 
+                        CantidadOperaciones = grupo.Count()
+                    })
+                    .OrderByDescending(r => r.TotalRecaudado)
+                    .ToList();
+            }
+            else
+            {
+                datosRecaudacion = query
+                    .GroupBy(c => c.MetodoPago)
+                    .Select(grupo => new RecaudacionViewModel
+                    {
+                        MetodoPago = grupo.Key,
+                        // Si es ARS, sumamos el MontoTotal tradicional
+                        TotalRecaudado = grupo.Sum(c => c.MontoTotal),
+                        CantidadOperaciones = grupo.Count()
+                    })
+                    .OrderByDescending(r => r.TotalRecaudado)
+                    .ToList();
+            }
+
+            // Calculamos el total general para el pie de página
+            ViewBag.TotalGeneral = datosRecaudacion.Sum(r => r.TotalRecaudado);
+
+            return View(datosRecaudacion);
         }
     }
 }

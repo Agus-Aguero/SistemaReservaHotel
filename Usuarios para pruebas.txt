@@ -12,7 +12,7 @@ Nombre de mascota: Tom
 cmartinez
 AAaa.2026
 
-areccio@
+areccio@argentower.com
 Qwe.123
 
 lalonso@argentower.com
@@ -21,7 +21,7 @@ Asd.123
 fsanchez@argentower.com
 Asd.123
 
-nnunez@argentower.com
+nnunez@argentower.com   "CUENTA DESHABILITADA"
 Asd.123
 
 vgomez@argentower.com
@@ -68,3 +68,12 @@ Paez.0099
 
 fsuarez@outlook.com
 1234	
+
+lauti.m@gmail.com
+1234
+
+omar.carrasco@hotmail.com
+Zxc.1234
+
+larap@outlook.com
+Zxc.1234

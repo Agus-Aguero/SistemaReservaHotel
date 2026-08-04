@@ -1,0 +1,346 @@
+@model SistemaReserva.Models.Reserva
+
+@{
+    ViewData["Title"] = "Procesar Pago o Garantía";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="mb-0"><i class="fas fa-lock me-2"></i> Pago Seguro / Garantía</h3>
+                </div>
+                <div class="card-body p-5">
+                    
+                    @* Resumen de la reserva *@
+                    <div class="alert alert-info mb-4">
+                        <h5 class="alert-heading">Resumen de su Reserva #@Model.IdReserva</h5>
+                        <hr />
+                        <p class="mb-1"><strong>Huésped:</strong> @Model.Huesped.Apellido, @Model.Huesped.Nombre</p>
+                        <p class="mb-1"><strong>Habitación:</strong> @Model.TipoHabitacion.Nombre</p>
+                        <p class="mb-0 fs-4 text-end">
+                            <strong>Total: 
+                                <span id="montoTotalVisual" 
+                                    data-ars="@Model.PrecioTotal.ToString(System.Globalization.CultureInfo.InvariantCulture)" 
+                                    data-cotizacion="@(ViewBag.CotizacionDolar != null ? Convert.ToDecimal(ViewBag.CotizacionDolar).ToString(System.Globalization.CultureInfo.InvariantCulture) : "1")">
+                                    $@Model.PrecioTotal.ToString("N2") ARS
+                                </span>
+                            </strong>
+                        </p>
+                    </div>
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Error"]</div>
+                    }
+
+                    <form asp-controller="Cobro" asp-action="ProcesarPago" method="post" id="formPago">
+                    <input type="hidden" name="IdReserva" value="@Model.IdReserva" />
+
+                    <!-- 👇 NUEVO: SELECTOR DE MONEDA 👇 -->
+                    <div class="mb-4">
+                        <h5 class="mb-3 text-secondary">1. Moneda de Pago:</h5>
+                        <div class="btn-group w-100 shadow-sm" role="group">
+                            <input type="radio" class="btn-check" name="Moneda" id="monedaARS" value="ARS" checked onchange="toggleMoneda()">
+                            <label class="btn btn-outline-primary" for="monedaARS"><i class="fas fa-money-bill-wave me-2"></i>Pesos (ARS)</label>
+
+                            <input type="radio" class="btn-check" name="Moneda" id="monedaUSD" value="USD" onchange="toggleMoneda()">
+                            <label class="btn btn-outline-success" for="monedaUSD"><i class="fas fa-dollar-sign me-2"></i>Dólares (USD)</label>
+                        </div>
+                    </div>
+                    <!-- 👆 FIN SELECTOR DE MONEDA 👆 -->
+
+                    <h5 class="mb-3 text-secondary">2. Método de Pago:</h5>
+                    
+                    <div class="list-group mb-4">
+                        <!-- Tarjeta en Garantía -->
+                        <label class="list-group-item d-flex gap-2" id="opcionGarantia">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="TipoOperacion" value="GarantiaCredito" checked onchange="toggleFormulario()">
+                            <span>
+                                <strong><i class="fas fa-credit-card text-primary"></i> Dejar Tarjeta de crédito en Garantía</strong>
+                                <small class="d-block text-muted">Solo validaremos la tarjeta. Pagará el total en el hotel (Check-in).</small>
+                            </span>
+                        </label>
+                        
+                        <!-- Tarjeta Débito/Crédito -->
+                        <label class="list-group-item d-flex gap-2" id="opcionTarjeta">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="TipoOperacion" value="PagoTotalDebito" onchange="toggleFormulario()">
+                            <span>
+                                <strong><i class="fas fa-money-check text-primary"></i> Pagar el Total Ahora (Tarjeta)</strong>
+                                <small class="d-block text-muted">Se descontará el total de su cuenta bancaria o límite de crédito.</small>
+                            </span>
+                        </label>
+
+                        <!-- 👇 NUEVO: EFECTIVO 👇 -->
+                        <label class="list-group-item d-flex gap-2" id="opcionEfectivo">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="TipoOperacion" value="Efectivo" onchange="toggleFormulario()">
+                            <span>
+                                <strong><i class="fas fa-wallet text-success"></i> Pago en Efectivo</strong>
+                                <small class="d-block text-muted" id="textoEfectivo">Abonará el total de forma presencial en el mostrador.</small>
+                            </span>
+                        </label>
+                        <!-- 👆 FIN EFECTIVO 👆 -->
+
+                        <!-- Transferencia -->
+                        <label class="list-group-item d-flex gap-2" id="opcionTransferencia">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="TipoOperacion" value="Transferencia" onchange="toggleFormulario()">
+                            <span>
+                                <strong><i class="fas fa-university text-warning"></i> Transferencia Bancaria</strong>
+                                <small class="d-block text-muted">Le daremos un CBU/Alias para que transfiera y nos envíe el comprobante.</small>
+                            </span>
+                        </label>
+                        
+                        <!-- MODO -->
+                        <label class="list-group-item d-flex gap-2" id="opcionModo">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="TipoOperacion" value="PagoModo" onchange="toggleFormulario()">
+                            <span>
+                                <strong><i class="fas fa-qrcode text-info"></i> Pagar con MODO (QR)</strong>
+                                <small class="d-block text-muted">Generaremos un código QR para que escanees desde tu app.</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Formulario de Tarjeta (Queda igual a tu código original) -->
+                    <div id="formularioTarjeta" class="bg-light p-4 rounded border mb-4">
+                        <h6 class="mb-3" id="tituloTarjeta">Datos de la Tarjeta</h6>
+                        <!-- (Mantené todos tus inputs de la tarjeta acá: NumeroTarjeta, Vencimiento, CVV) -->
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Número de Tarjeta</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="NumeroTarjeta" id="NumeroTarjeta" placeholder="1234 5678 1234 5678" maxlength="19">
+                                    <span class="input-group-text bg-white" id="tarjetaIcono" style="width: 50px; justify-content: center;">
+                                        <i class="fas fa-credit-card text-muted"></i>
+                                    </span>
+                                </div>
+                                <div id="tarjetaMensaje" class="form-text mt-1"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Vencimiento</label>
+                                <input type="text" class="form-control" name="Vencimiento" id="Vencimiento" placeholder="MM/AA" maxlength="5">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">CVV</label>
+                                <input type="text" class="form-control" name="CVV" id="CVV" placeholder="123" maxlength="4">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario QR Modo (Queda igual) -->
+                    <div id="formularioQR" class="bg-light p-4 rounded border mb-4 text-center" style="display: none;">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-mobile-alt me-2"></i>Escaneá el código para pagar</h6>
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PagoReserva_ArgenTower" alt="QR MODO" class="img-fluid border p-2 bg-white rounded shadow-sm mb-2">
+                        <p class="text-muted mt-2 mb-0 small"><i class="fas fa-spinner fa-spin me-1"></i> Esperando confirmación de la aplicación...</p>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check-circle"></i> Confirmar Operación</button>
+                        <a asp-controller="Reserva" asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleMoneda() {
+        var moneda = document.querySelector('input[name="Moneda"]:checked').value;
+        var transfer = document.getElementById('opcionTransferencia');
+        var modo = document.getElementById('opcionModo');
+        var efectivo = document.getElementById('opcionEfectivo'); // Capturamos la opción de efectivo
+        var textoEfectivo = document.getElementById('textoEfectivo');
+        
+        // Capturamos el span del precio y sus datos ocultos (ahora con el formato numérico correcto)
+        var spanTotal = document.getElementById('montoTotalVisual');
+        var montoArs = parseFloat(spanTotal.getAttribute('data-ars'));
+        var cotizacion = parseFloat(spanTotal.getAttribute('data-cotizacion'));
+
+        if (moneda === 'USD') {
+            // Ocultamos MODO y Transferencia
+            transfer.classList.remove('d-flex');
+            transfer.classList.add('d-none');
+            modo.classList.remove('d-flex');
+            modo.classList.add('d-none');
+            
+            // 👇 MOSTRAMOS EFECTIVO PARA DÓLARES
+            efectivo.classList.remove('d-none');
+            efectivo.classList.add('d-flex');
+            textoEfectivo.innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-circle"></i> Requiere cargar tarjeta en garantía.</span>';
+
+            // Calculamos y mostramos el valor en Dólares (Evitamos división por cero por las dudas)
+            if (cotizacion > 0) {
+                var montoUsd = montoArs / cotizacion;
+                spanTotal.innerHTML = "USD " + montoUsd.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " <br><small class='text-muted fs-6'>(Cotización: $" + cotizacion + ")</small>";
+            }
+
+            // Si tenía elegido Transferencia o MODO, lo movemos a Garantía
+            var seleccionActual = document.querySelector('input[name="TipoOperacion"]:checked').value;
+            if (seleccionActual === 'Transferencia' || seleccionActual === 'PagoModo') {
+                document.querySelector('input[value="GarantiaCredito"]').checked = true;
+            }
+
+        } else {
+            // Volvemos a mostrar MODO y Transferencia
+            transfer.classList.remove('d-none');
+            transfer.classList.add('d-flex');
+            modo.classList.remove('d-none');
+            modo.classList.add('d-flex');
+            
+            // 👇 OCULTAMOS EFECTIVO PARA PESOS
+            efectivo.classList.remove('d-flex');
+            efectivo.classList.add('d-none');
+            
+            // Volvemos el texto a Pesos
+            spanTotal.innerHTML = "$" + montoArs.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " ARS";
+
+            // Si estaba en Efectivo y cambió la moneda a Pesos, lo movemos a Garantía
+            var seleccionActual = document.querySelector('input[name="TipoOperacion"]:checked').value;
+            if (seleccionActual === 'Efectivo') {
+                document.querySelector('input[value="GarantiaCredito"]').checked = true;
+            }
+        }
+
+        // Refrescamos los formularios de abajo
+        toggleFormulario();
+    }
+
+        // 👇 ACTUALIZACIÓN: Ahora muestra la tarjeta si es Efectivo en Dólares
+        function toggleFormulario() {
+            var moneda = document.querySelector('input[name="Moneda"]:checked').value;
+            var seleccion = document.querySelector('input[name="TipoOperacion"]:checked').value;
+            
+            var divTarjeta = document.getElementById('formularioTarjeta');
+            var divQR = document.getElementById('formularioQR');
+            var tituloTarjeta = document.getElementById('tituloTarjeta');
+            
+            // 1. Apagamos todo por defecto
+            divTarjeta.style.display = 'none';
+            if(divQR) divQR.style.display = 'none';
+            
+            document.getElementById('NumeroTarjeta').required = false;
+            document.getElementById('CVV').required = false;
+
+            // 2. Evaluamos qué prender
+            if (seleccion === 'Transferencia') {
+                // No mostramos nada extra
+            } 
+            else if (seleccion === 'PagoModo') {
+                if(divQR) divQR.style.display = 'block';
+            } 
+            else if (seleccion === 'Efectivo') {
+                // LA REGLA CLAVE: Si es efectivo pero en DÓLARES, pedimos tarjeta obligatoria
+                if (moneda === 'USD') {
+                    divTarjeta.style.display = 'block';
+                    tituloTarjeta.innerText = 'Tarjeta en Garantía (Obligatorio)';
+                    document.getElementById('NumeroTarjeta').required = true;
+                    document.getElementById('CVV').required = true;
+                }
+            }
+            else {
+                // GarantiaCredito o PagoTotalDebito (Siempre piden tarjeta)
+                divTarjeta.style.display = 'block';
+                tituloTarjeta.innerText = 'Datos de la Tarjeta';
+                document.getElementById('NumeroTarjeta').required = true;
+                document.getElementById('CVV').required = true;
+            }
+        }
+
+        // Ejecutamos al inicio para setear la vista en su estado por defecto
+        toggleMoneda();
+        
+        // Ejecutamos al cargar la página por si hay algún valor predeterminado
+        toggleFormulario();
+        // --- FORMATEO EN TIEMPO REAL DE LA TARJETA ---
+
+        // 1. Formateo y Detección del Número de Tarjeta
+        const inputTarjeta = document.getElementById('NumeroTarjeta');
+        const iconoTarjeta = document.getElementById('tarjetaIcono');
+        const mensajeTarjeta = document.getElementById('tarjetaMensaje');
+
+        inputTarjeta.addEventListener('input', function (e) {
+            // a. Nos quedamos solo con los números puros (sin espacios) para validar
+            let valorPuro = e.target.value.replace(/\D/g, '');
+            
+            // b. Formateamos con espacios visuales para el input
+            let valorVisual = valorPuro.replace(/(\d{4})(?=\d)/g, '$1 ');
+            e.target.value = valorVisual;
+
+            // c. ¡LA MAGIA DE LA DETECCIÓN! 
+            // Si ya escribió al menos 4 números, analizamos el BIN
+            if (valorPuro.length >= 4) {
+                let bin = valorPuro.substring(0, 4);
+
+                switch (bin) {
+                    case '4111': // Visa Crédito
+                        iconoTarjeta.innerHTML = '<i class="fab fa-cc-visa fa-lg text-primary"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-check"></i> Visa Crédito detectada</span>';
+                        break;
+                    case '4555': // Visa Débito
+                        iconoTarjeta.innerHTML = '<i class="fab fa-cc-visa fa-lg text-success"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check"></i> Visa Débito detectada</span>';
+                        break;
+                    case '5100': // Mastercard Crédito
+                        iconoTarjeta.innerHTML = '<i class="fab fa-cc-mastercard fa-lg text-primary"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-check"></i> Mastercard Crédito detectada</span>';
+                        break;
+                    case '5500': // Mastercard Débito
+                        iconoTarjeta.innerHTML = '<i class="fab fa-cc-mastercard fa-lg text-success"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-success fw-bold"><i class="fas fa-check"></i> Mastercard Débito detectada</span>';
+                        break;
+                    case '3400': // Amex Crédito
+                    case '3700':
+                        iconoTarjeta.innerHTML = '<i class="fab fa-cc-amex fa-lg text-primary"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-check"></i> American Express detectada</span>';
+                        break;
+                    default: // BIN no reconocido en nuestro Mock
+                        iconoTarjeta.innerHTML = '<i class="fas fa-times-circle fa-lg text-danger"></i>';
+                        mensajeTarjeta.innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Tarjeta no soportada por el hotel</span>';
+                        break;
+                }
+            } else {
+                // Si borró y tiene menos de 4 números, reseteamos el estado visual
+                iconoTarjeta.innerHTML = '<i class="fas fa-credit-card text-muted"></i>';
+                mensajeTarjeta.innerHTML = '';
+            }
+        });
+
+        // 2. Formateo del Vencimiento (Agrega la barra MM/AA)
+        const inputVencimiento = document.getElementById('Vencimiento');
+        inputVencimiento.addEventListener('input', function (e) {
+            // Eliminamos todo lo que no sea un número
+            let valor = e.target.value.replace(/\D/g, '');
+            
+            // Si ya escribió más de 2 números, insertamos la barra en el medio
+            if (valor.length > 2) {
+                valor = valor.substring(0, 2) + '/' + valor.substring(2, 4);
+            }
+            
+            e.target.value = valor;
+        });
+
+        // 3. Formateo del CVV (Solo permite números)
+        const inputCVV = document.getElementById('CVV');
+        inputCVV.addEventListener('input', function (e) {
+            // Simplemente borramos letras o símbolos
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+        // --- LIMPIEZA ANTES DE ENVIAR AL SERVIDOR ---
+        const formPago = document.getElementById('formPago');
+
+        if (formPago) {
+            formPago.addEventListener('submit', function () {
+                const inputTarjeta = document.getElementById('NumeroTarjeta');
+                
+                // Le quitamos todos los espacios vacíos justo antes de enviar
+                if (inputTarjeta.value) {
+                    inputTarjeta.value = inputTarjeta.value.replace(/\s/g, '');
+                }
+            });
+        }
+    </script>
+}

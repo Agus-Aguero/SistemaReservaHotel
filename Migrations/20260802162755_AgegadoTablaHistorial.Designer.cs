@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SistemaReserva.Models;
 
@@ -11,9 +12,11 @@ using SistemaReserva.Models;
 namespace SistemaReserva.Migrations
 {
     [DbContext(typeof(SistemaReservaContext))]
-    partial class SistemaReservaContextModelSnapshot : ModelSnapshot
+    [Migration("20260802162755_AgegadoTablaHistorial")]
+    partial class AgegadoTablaHistorial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,9 +126,6 @@ namespace SistemaReserva.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdCobro"));
 
-                    b.Property<decimal?>("CotizacionAplicada")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("Estado")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -142,13 +142,6 @@ namespace SistemaReserva.Migrations
                     b.Property<string>("MetodoPago")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MonedaPago")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("MontoEnDolares")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("MontoTotal")
                         .HasColumnType("decimal(18,2)");

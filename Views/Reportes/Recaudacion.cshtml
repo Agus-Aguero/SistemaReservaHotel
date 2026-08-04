@@ -1,0 +1,247 @@
+@model IEnumerable<SistemaReserva.Models.RecaudacionViewModel>
+@{
+    ViewData["Title"] = "Recaudación por Medio de Pago";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4"><i class="fas fa-hand-holding-usd text-success"></i> Recaudación por Medio de Pago</h2>
+    <!-- Formulario de Filtros -->
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body py-3">
+            <form asp-controller="Reportes" asp-action="Recaudacion" method="get" class="row g-3 align-items-center">
+                
+                <div class="col-auto">
+                    <label for="fechaDesde" class="col-form-label fw-bold text-secondary"><i class="far fa-calendar-alt me-1"></i> Desde:</label>
+                </div>
+                <div class="col-auto">
+                    <!-- Usamos el ViewBag para que el calendario mantenga la fecha elegida -->
+                    <input type="date" id="fechaDesde" name="fechaDesde" class="form-control" value="@ViewBag.FechaDesde" required>
+                </div>
+                
+                <div class="col-auto">
+                    <label for="fechaHasta" class="col-form-label fw-bold text-secondary ms-2"><i class="far fa-calendar-check me-1"></i> Hasta:</label>
+                </div>
+                <div class="col-auto">
+                    <input type="date" id="fechaHasta" name="fechaHasta" class="form-control" value="@ViewBag.FechaHasta" required>
+                </div>
+                <div class="col-auto">
+                    <label for="moneda" class="col-form-label fw-bold text-secondary ms-2"><i class="fas fa-coins me-1"></i> Moneda:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="moneda" id="moneda" class="form-select shadow-sm">
+                        @if (ViewBag.MonedaActual == "USD")
+                        {
+                            <option value="ARS">Pesos (ARS)</option>
+                            <option value="USD" selected>Dólares (USD)</option>
+                        }
+                        else
+                        {
+                            <option value="ARS" selected>Pesos (ARS)</option>
+                            <option value="USD">Dólares (USD)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto ms-auto">
+                    <button type="submit" class="btn btn-primary shadow-sm">
+                        <i class="fas fa-filter me-1"></i> Aplicar Filtro
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Columna de la Tabla -->
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-secondary mb-3">Detalle de Ingresos</h5>
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Método de Pago</th>
+                                <th class="text-center">Operaciones</th>
+                                <th class="text-end">Total Recaudado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@item.MetodoPago</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info text-dark rounded-pill">@item.CantidadOperaciones</span>
+                                    </td>
+                                    <td class="text-end text-success fw-bold">
+                                        <!-- Magia dinámica: Si es USD pone "USD ", sino pone el signo "$" -->
+                                        @(ViewBag.MonedaActual == "USD" ? "USD " : "$")@item.TotalRecaudado.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="2" class="text-end">TOTAL GENERAL:</td>
+                                <td class="text-end fs-5">$@(((decimal)ViewBag.TotalGeneral).ToString("N2"))</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna del Gráfico -->
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h5 class="card-title text-secondary w-100 mb-3">Distribución Visual</h5>
+                    
+                    <!-- Canvas donde Chart.js dibuja el gráfico -->
+                    <div style="width: 100%; max-width: 350px;">
+                        <canvas id="graficoRecaudacion"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr class="my-5" />
+
+        <h4 class="mb-3"><i class="fas fa-list text-secondary"></i> Detalle de Transacciones</h4>
+
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reserva #</th>
+                        <th>Huésped</th>
+                        <th>Medio de Pago</th>
+                        <th>Detalle Tarjeta</th>
+                        <th>Fecha y Hora</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ViewBag.DetalleCobros != null && ViewBag.DetalleCobros.Count > 0)
+                    {
+                        foreach (var cobro in ViewBag.DetalleCobros)
+                        {
+                            <tr>
+                                <td><strong>#@cobro.IdReserva</strong></td>
+                                
+                                <!-- Mostramos Apellido y Nombre del huésped -->
+                                <td>@cobro.Reserva.Huesped.Apellido, @cobro.Reserva.Huesped.Nombre</td>
+                                
+                                <td>
+                                    <!-- Ponemos un iconito dependiendo el método -->
+                                    @if (cobro.MetodoPago.Contains("Tarjeta"))
+                                    {
+                                        <i class="fas fa-credit-card text-primary me-1"></i>
+                                    }
+                                    else if (cobro.MetodoPago == "Transferencia")
+                                    {
+                                        <i class="fas fa-university text-warning me-1"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-qrcode text-info me-1"></i>
+                                    }
+                                    @cobro.MetodoPago
+                                </td>
+                                
+                                <!-- Si pagó con tarjeta, mostramos la marca y los últimos 4. Si no, un guión -->
+                                <td>
+                                    @if (!string.IsNullOrEmpty(cobro.Ultimos4Digitos))
+                                    {
+                                        <span class="badge bg-secondary">@cobro.MarcaTarjeta ***@cobro.Ultimos4Digitos</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                
+                                <!-- Formateamos la fecha para que se vea prolija -->
+                                <td>@cobro.FechaCobro.ToString("dd/MM/yyyy HH:mm")</td>
+                                
+                                <!-- Formato de moneda para el total -->
+                                <td class="text-end">
+                                    @if (cobro.MonedaPago == "USD")
+                                    {
+                                        <span class="text-success fw-bold">USD @cobro.MontoEnDolares?.ToString("N2")</span>
+                                        <br>
+                                        <small class="text-muted fw-normal" style="font-size: 0.80em;">($@cobro.MontoTotal.ToString("N2") ARS)</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success fw-bold">$@cobro.MontoTotal.ToString("N2") ARS</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle mb-2 fs-4 d-block"></i>
+                                No hay transacciones aprobadas en este rango de fechas.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Importamos la librería Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Pasamos los datos de C# a JavaScript usando JSON
+            const labels = @Html.Raw(Json.Serialize(Model.Select(m => m.MetodoPago)));
+            const data = @Html.Raw(Json.Serialize(Model.Select(m => m.TotalRecaudado)));
+
+            const ctx = document.getElementById('graficoRecaudacion').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut', // Gráfico de dona
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Recaudación ($)',
+                        data: data,
+                        backgroundColor: [
+                            '#0d6efd', // Azul Bootstrap
+                            '#198754', // Verde Bootstrap
+                            '#ffc107', // Amarillo Bootstrap
+                            '#dc3545', // Rojo Bootstrap
+                            '#6f42c1'  // Violeta Bootstrap
+                        ],
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.raw;
+                                    // Formateamos el número en el cartelito a moneda
+                                    return ' $' + value.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}

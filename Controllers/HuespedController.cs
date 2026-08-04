@@ -105,10 +105,10 @@ namespace SistemaReserva.Controllers
                 var nuevoUsuario = new Usuario
                 {
                     Email = model.Email,
-                    Password = Encriptador.GenerarHash("1234"),
+                    Password = Encriptador.GenerarHash("Temporal.1234"),
                     Grupos = new List<Familia> { (Familia)perfilHuesped },
                     PreguntaSeguridad = "Configurada por Admin",
-                    RespuestaSeguridad = "1234"
+                    RespuestaSeguridad = "Temporal.1234"
                 };
 
                 _context.Usuario.Add(nuevoUsuario);
@@ -116,7 +116,7 @@ namespace SistemaReserva.Controllers
                 
                 await _context.SaveChangesAsync();
                 
-                TempData["Success"] = "Huésped registrado. Puede ingresar con su email y clave 1234.";
+                TempData["Success"] = "Huésped registrado. Puede ingresar con su email y clave: Temporal.1234";
                 return RedirectToAction(nameof(Index));
             }
             return View(model);
@@ -145,17 +145,21 @@ namespace SistemaReserva.Controllers
         {
             if (id != huesped.IdPersona) return NotFound();
 
-            // 1. CORRECCIÓN LÓGICA: Ahora "Staff" es tanto el Admin como Recepción
-            bool esStaff = SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
-                        SesionUsuario.Instancia.TienePermiso("Recepcion");
+            // 1. CORRECCIÓN LÓGICA: Sumamos tu patente "Gestionar Huespedes" al chequeo
+            bool esStaff = //SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                        SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes");
 
             // VALIDACIÓN DE IDENTIDAD: Si no es staff, solo puede editarse a sí mismo
             if (!esStaff && huesped.Email != SesionUsuario.Instancia.Email)
             {
-                // 2. CORRECCIÓN TÉCNICA: Adiós Forbid(). Usamos una redirección manual
                 TempData["Error"] = "No tienes permisos para editar el perfil de otro usuario.";
                 return RedirectToAction("Index", "Home"); 
             }
+
+            // 2. LIMPIEZA DE MODELO: Ignoramos las propiedades de navegación
+            ModelState.Remove("Usuario");
+            ModelState.Remove("Reservas");
+            // (Si tenés alguna otra propiedad de navegación en tu clase Huesped, agregala acá)
 
             if (ModelState.IsValid)
             {
@@ -170,10 +174,10 @@ namespace SistemaReserva.Controllers
                     _context.Update(huesped);
                     await _context.SaveChangesAsync();
                     
-                    // REDIRECCIÓN INTELIGENTE CORREGIDA
+                    // REDIRECCIÓN INTELIGENTE
                     if (esStaff)
                     {
-                        // El staff (Admin o Recepcionista) vuelve a la lista de huéspedes
+                        // El staff vuelve a la lista de huéspedes (al Index)
                         TempData["Success"] = "Huésped actualizado correctamente.";
                         return RedirectToAction(nameof(Index));
                     }
@@ -186,9 +190,12 @@ namespace SistemaReserva.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    // Manejo de errores...
+                    // (Tu lógica de error original)
+                    throw; 
                 }
             }
+            
+            // Si llegó acá es porque faltó completar algún campo obligatorio en el formulario
             return View(huesped);
         }
 

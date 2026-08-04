@@ -11,6 +11,8 @@ namespace SistemaReserva.Models
         [Required(ErrorMessage = "La contraseña es obligatoria")]
         [DataType(DataType.Password)]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres")]
+        [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).+$", 
+            ErrorMessage = "La contraseña debe incluir al menos una letra mayúscula, un número y un carácter especial (ej: @, $, !, etc.).")]
         public string Password { get; set; }
 
         [Required(ErrorMessage = "Debes confirmar la contraseña")]
@@ -26,6 +28,5 @@ namespace SistemaReserva.Models
         [Required(ErrorMessage = "La respuesta de seguridad es obligatoria")]
         [Display(Name = "Respuesta de Seguridad")]
         public string RespuestaSeguridad { get; set; }
-
     }
 }

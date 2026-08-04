@@ -75,7 +75,7 @@
                         
 
                         @* 2. Infraestructura (Admin y Recepción) *@
-                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones") || SesionUsuario.Instancia.TienePermiso("Recepcion"))
+                        @if (SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones") || SesionUsuario.Instancia.TienePermiso(nombrePermiso: "Gestionar Huespedes"))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdownHab" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -95,35 +95,75 @@
                             </li>
                         }
 
-                        @* 3. Sección de Reservas y Gestión Operativa *@
-                        @if (SesionUsuario.Instancia.TienePermiso("Ver Reservas"))
+                        @* 3. Sección de Reservas *@
+                        @if (!string.IsNullOrEmpty(SesionUsuario.Instancia.Email))
                         {
-                            @* Si es Admin o Recepcionista *@
-                            if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") ||
-                           SesionUsuario.Instancia.TienePermiso("CheckIn"))
+                            @* Si tiene CUALQUIER permiso del hotel (incluido el de Auditor), le damos el Panel *@
+                            @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios") || 
+                                SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes") ||
+                                SesionUsuario.Instancia.TienePermiso("Gestionar Habitaciones") ||
+                                SesionUsuario.Instancia.TienePermiso("Ver Reservas")) @* <-- AGREGAR ESTE *@
                             {
                                 <li class="nav-item">
-                                    @* CAMBIO 3: text-white *@
-                                    <a class="nav-link text-white fw-bold" asp-controller="Reserva" asp-action="Index">📋 Panel de Reservas</a>
+                                    <a class="nav-link text-white text-nowrap" asp-controller="Reserva" asp-action="Index">
+                                        📋 Panel de Reservas
+                                    </a>
                                 </li>
                             }
-                            else @* Es un Huésped *@
+                            else @* Si no tiene ninguno de esos permisos, es un Huésped puro *@
                             {
                                 <li class="nav-item">
-                                    @* CAMBIO 3: text-white *@
                                     <a class="nav-link text-white fw-bold" asp-controller="Reserva" asp-action="Index">📅 Mis Reservas</a>
                                 </li>
                             }
                         }
 
+                        @if (SesionUsuario.Instancia.TienePermiso("Ver Reportes"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white text-nowrap" href="#" id="reportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    📊 Reportes
+                                </a>
+                                <ul class="dropdown-menu shadow" aria-labelledby="reportesDropdown">
+                                    <li><a class="dropdown-item" asp-controller="Reportes" asp-action="Index"><i class="fas fa-chart-line me-2"></i> Tipo de Habitación</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-controller="Reportes" asp-action="Recaudacion"><i class="fas fa-hand-holding-usd me-2"></i> Recaudación por Medio de Pago</a></li>
+                                </ul>
+                            </li>
+                        }
+
+                        @* Si esta auditoría es la de resetear claves y roles, usamos la patente "Gestionar Usuarios". 
+                        Si tenés otro controlador para log de movimientos, cambialo por "Ver Auditoria" *@
                         @if (SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Reportes" asp-action="Index">
-                                    📊 Reportes
+                                <a class="nav-link text-white text-nowrap" asp-controller="Usuario" asp-action="Index">
+                                    🛡️ Gestion de Usuarios
                                 </a>
                             </li>
-                            <li><a class="dropdown-item" asp-controller="Usuario" asp-action="Index">Auditoría de Usuarios</a></li>
+                        }
+
+                        @* Si tenés un panel específico de Auditoría del Sistema, agregá este también: *@
+                       @if (SesionUsuario.Instancia.TienePermiso("Ver Auditoria"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="navbarAuditoria" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    🔍 Auditorias
+                                </a>
+                                <ul class="dropdown-menu shadow" aria-labelledby="navbarAuditoria">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Auditoria" asp-action="Sesiones">
+                                            <i class="fas fa-sign-in-alt text-muted me-2"></i> Accesos de Usuarios
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Auditoria" asp-action="Reservas">
+                                            <i class="fas fa-history text-muted me-2"></i> Trazabilidad de Reservas
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
                         }
 
                         @* 4. MI CUENTA (Lado derecho) *@

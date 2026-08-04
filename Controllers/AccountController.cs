@@ -18,7 +18,6 @@ namespace SistemaReserva.Controllers
         // GET: Account/Login
         public IActionResult Login()
         {
-            // Si ya hay una sesión activa, redirigir al Home
             if (SesionUsuario.Instancia.Email != null) return RedirectToAction("Index", "Home");
             return View();
         }
@@ -30,20 +29,26 @@ namespace SistemaReserva.Controllers
             string cleanPassword = password?.Trim();
             string hashIngresado = Encriptador.GenerarHash(cleanPassword);
 
-            // 1. Buscamos el usuario por credenciales
             var usuario = await _context.Usuario
-                .Include(u => u.Grupos) // Cargamos las familias a las que pertenece el usuario 
+                .Include(u => u.Grupos)
                 .FirstOrDefaultAsync(u => u.Email == email.Trim() && u.Password == hashIngresado);
 
             if (usuario != null)
             {
-                // Buscamos si existe un registro en Recepcionista para este email
                 var staff = await _context.Recepcionista
                     .FirstOrDefaultAsync(r => r.Email == usuario.Email);
 
-                // Si es staff y está inactivo, bloqueamos el acceso inmediatamente
                 if (staff != null && !staff.Activo)
                 {
+                    // 🔥 AUDITORÍA: LOGIN FALLIDO (CUENTA INACTIVA)
+                    var auditoriaInactivo = new AuditoriaSesion {
+                        EmailUsuario = email.Trim(),
+                        TipoEvento = "LOGIN FALLIDO",
+                        Detalles = "Intento de ingreso con cuenta de staff desactivada."
+                    };
+                    _context.AuditoriaSesion.Add(auditoriaInactivo);
+                    await _context.SaveChangesAsync();
+
                     ViewBag.Error = "Tu cuenta de acceso ha sido desactivada. Contacta al administrador.";
                     return View();
                 }
@@ -55,26 +60,43 @@ namespace SistemaReserva.Controllers
                 {   
                     foreach (var grupo in usuario.Grupos)
                     {
-                        // Cargamos la estructura de este grupo desde la base de datos
                         await CargarHijosRecursivo(grupo);
-                        
-                        // Le "colgamos" este grupo al Súper Grupo
                         perfilConsolidado.Agregar(grupo);
                     }
                 }
 
-                // Le pasamos al Singleton el Súper Grupo que contiene TODOS los roles
                 SesionUsuario.Instancia.Login(usuario.IdUsuario, usuario.Email, perfilConsolidado);
                 
+                // 🔥 AUDITORÍA: LOGIN EXITOSO
+                var auditoriaExito = new AuditoriaSesion {
+                    EmailUsuario = usuario.Email,
+                    TipoEvento = "LOGIN EXITOSO",
+                    Detalles = "Ingreso normal al sistema."
+                };
+                _context.AuditoriaSesion.Add(auditoriaExito);
+                await _context.SaveChangesAsync();
+                
                 var tienePerfil = await _context.Persona.AnyAsync(p => p.Email == usuario.Email);
+                bool usaClaveTemporal = cleanPassword == "Temporal.1234";
 
-                if (!tienePerfil && !SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
+                if (!SesionUsuario.Instancia.TienePermiso("Gestionar Usuarios"))
                 {
-                    return RedirectToAction("CompleteData");
+                    if (usaClaveTemporal) return RedirectToAction("ForzarCambioClave");
+                    if (!tienePerfil) return RedirectToAction("CompleteData");
                 }
                 
                 return RedirectToAction("Index", "Home");
             }
+
+            // 🔥 AUDITORÍA: LOGIN FALLIDO (CREDENCIALES INCORRECTAS)
+            var auditoriaError = new AuditoriaSesion {
+                // Usamos el email que intentó poner, aunque no exista o la clave esté mal
+                EmailUsuario = string.IsNullOrWhiteSpace(email) ? "Desconocido" : email.Trim(),
+                TipoEvento = "LOGIN FALLIDO",
+                Detalles = "Credenciales incorrectas o usuario inexistente."
+            };
+            _context.AuditoriaSesion.Add(auditoriaError);
+            await _context.SaveChangesAsync();
 
             ViewBag.Error = "Credenciales incorrectas.";
             return View();
@@ -316,7 +338,7 @@ namespace SistemaReserva.Controllers
             }
 
             // Si es Recepcionista, lo mandamos al Edit de RecepcionistaController
-            if (SesionUsuario.Instancia.TienePermiso("Recepcion")) // O el permiso que definas
+            if (SesionUsuario.Instancia.TienePermiso("Gestionar Huespedes")) // O el permiso que definas
             {
                 return RedirectToAction("Edit", "Recepcionista", new { id = persona.IdPersona });
             }
@@ -342,11 +364,64 @@ namespace SistemaReserva.Controllers
         }
 
         // GET: Account/Logout
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            // Verificamos que haya alguien logueado antes de auditar
+            if (!string.IsNullOrEmpty(SesionUsuario.Instancia.Email))
+            {
+                // 🔥 AUDITORÍA: CIERRE DE SESIÓN
+                var auditoriaLogout = new AuditoriaSesion {
+                    EmailUsuario = SesionUsuario.Instancia.Email,
+                    TipoEvento = "LOGOUT",
+                    Detalles = "Cierre de sesión manual."
+                };
+                
+                _context.AuditoriaSesion.Add(auditoriaLogout);
+                await _context.SaveChangesAsync();
+            }
+
+            // Limpiamos el Singleton
             SesionUsuario.Instancia.Logout();
             
-            return RedirectToAction("Login");
+            return RedirectToAction("Login", "Account");
         }
+
+        // GET: Account/ForzarCambioClave
+        [HttpGet]
+        public IActionResult ForzarCambioClave()
+        {
+            return View();
+        }
+
+        // POST: Account/ForzarCambioClave
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForzarCambioClave(ForzarCambioClaveViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var emailLogueado = SesionUsuario.Instancia.Email;
+            
+            // Buscamos al usuario actual
+            var usuario = await _context.Usuario
+                .FirstOrDefaultAsync(u => u.Email == emailLogueado);
+
+            if (usuario != null)
+            {
+                // Encriptamos y guardamos la nueva clave fuerte
+                usuario.Password = Encriptador.GenerarHash(model.NuevaPassword);
+                _context.Usuario.Update(usuario);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "¡Contraseña actualizada por seguridad! Bienvenido al sistema.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            return View(model);
+        }
+
     }
 }

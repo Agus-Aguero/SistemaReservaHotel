@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SistemaReserva.Models;
 
@@ -11,9 +12,11 @@ using SistemaReserva.Models;
 namespace SistemaReserva.Migrations
 {
     [DbContext(typeof(SistemaReservaContext))]
-    partial class SistemaReservaContextModelSnapshot : ModelSnapshot
+    [Migration("20260326014853_HacerOpcionalesCamposCobro")]
+    partial class HacerOpcionalesCamposCobro
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,69 +55,6 @@ namespace SistemaReserva.Migrations
                     b.ToTable("PermisoRelacion");
                 });
 
-            modelBuilder.Entity("SistemaReserva.Models.AuditoriaReserva", b =>
-                {
-                    b.Property<int>("IdAuditoria")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdAuditoria"));
-
-                    b.Property<string>("EmailUsuario")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("FechaHora")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("IdReserva")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TipoOperacion")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ValoresNuevos")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ValoresOriginales")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("IdAuditoria");
-
-                    b.ToTable("AuditoriaReserva");
-                });
-
-            modelBuilder.Entity("SistemaReserva.Models.AuditoriaSesion", b =>
-                {
-                    b.Property<int>("IdRegistro")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdRegistro"));
-
-                    b.Property<string>("Detalles")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EmailUsuario")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("FechaHora")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("TipoEvento")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("IdRegistro");
-
-                    b.ToTable("AuditoriaSesion");
-                });
-
             modelBuilder.Entity("SistemaReserva.Models.Cobro", b =>
                 {
                     b.Property<int>("IdCobro")
@@ -122,9 +62,6 @@ namespace SistemaReserva.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdCobro"));
-
-                    b.Property<decimal?>("CotizacionAplicada")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -142,13 +79,6 @@ namespace SistemaReserva.Migrations
                     b.Property<string>("MetodoPago")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MonedaPago")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("MontoEnDolares")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("MontoTotal")
                         .HasColumnType("decimal(18,2)");
